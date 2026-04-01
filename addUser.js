@@ -1,17 +1,13 @@
-import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
-import User from './models/User.js';
 
-// 连接数据库
-mongoose.connect('mongodb://localhost:27017/justlearnit')
-.then(() => console.log('MongoDB connected'))
-.catch(err => console.error('MongoDB connection error:', err));
+// 内存存储用户数据
+const users = [];
 
 // 添加用户的函数
 const addUser = async (username, password) => {
   try {
     // 检查用户是否已存在
-    const existingUser = await User.findOne({ username });
+    const existingUser = users.find(u => u.username === username);
     if (existingUser) {
       console.log('User already exists');
       return;
@@ -22,18 +18,25 @@ const addUser = async (username, password) => {
     const hashedPassword = await bcrypt.hash(password, salt);
 
     // 创建新用户
-    const newUser = new User({
+    const newUser = {
+      id: Date.now().toString(),
       username,
       password: hashedPassword,
-    });
+      createdAt: new Date(),
+      lastLogin: new Date(),
+      learningStats: {
+        totalStudyTime: 0,
+        completedCourses: 0,
+        streak: 0,
+        lastStudyDate: null,
+      },
+    };
 
-    await newUser.save();
-    console.log('User added successfully');
+    users.push(newUser);
+    console.log('User added successfully:', newUser);
+    console.log('Current users:', users);
   } catch (error) {
     console.error('Error adding user:', error.message);
-  } finally {
-    // 关闭数据库连接
-    mongoose.disconnect();
   }
 };
 
