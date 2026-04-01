@@ -19,7 +19,8 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await axios.post('http://localhost:3002/api/auth/login', formData);
+      // 使用相对路径，通过Vite代理转发请求
+      const response = await axios.post('/api/auth/login', formData);
       setSuccess(response.data.message);
       setError('');
       // 保存token到localStorage
