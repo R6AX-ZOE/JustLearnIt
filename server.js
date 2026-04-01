@@ -2,6 +2,8 @@ import express from 'express';
 import cors from 'cors';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import fs from 'fs';
+import path from 'path';
 
 const app = express();
 const PORT = process.env.PORT || 3002;
@@ -10,13 +12,40 @@ const PORT = process.env.PORT || 3002;
 app.use(cors());
 app.use(express.json());
 
+// 用户数据文件路径
+const USERS_FILE = path.join(process.cwd(), 'users.json');
+
+// 加载用户数据
+const loadUsers = () => {
+  try {
+    if (fs.existsSync(USERS_FILE)) {
+      const data = fs.readFileSync(USERS_FILE, 'utf8');
+      return JSON.parse(data);
+    }
+    return [];
+  } catch (error) {
+    console.error('Error loading users:', error.message);
+    return [];
+  }
+};
+
+// 保存用户数据
+const saveUsers = (users) => {
+  try {
+    fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
+    console.log('Users saved to file');
+  } catch (error) {
+    console.error('Error saving users:', error.message);
+  }
+};
+
 // 根路径路由
 app.get('/', (req, res) => {
   res.json({ message: 'JustLearnIt API Server', users });
 });
 
-// 内存存储用户数据（用于测试）
-const users = [];
+// 加载用户数据
+const users = loadUsers();
 
 // 登录路由
 app.post('/api/auth/login', async (req, res) => {
@@ -34,6 +63,11 @@ app.post('/api/auth/login', async (req, res) => {
     if (!isPasswordValid) {
       return res.status(400).json({ message: 'Invalid username or password' });
     }
+
+    // 更新用户的最后登录时间
+    user.lastLogin = new Date();
+    // 保存用户数据到文件
+    saveUsers(users);
 
     // 生成JWT令牌
     const token = jwt.sign(
@@ -79,6 +113,8 @@ app.post('/api/add-user', async (req, res) => {
     };
 
     users.push(newUser);
+    // 保存用户数据到文件
+    saveUsers(users);
     console.log('User added successfully:', newUser);
     res.status(201).json({ message: 'User added successfully', user: newUser });
   } catch (error) {

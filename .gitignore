@@ -1,24 +1,23 @@
-# Logs
-logs
+# 依赖包
+node_modules/
+
+# 环境变量
+.env
+
+# 构建产物
+dist/
+build/
+
+# 用户数据文件
+users.json
+
+# 日志文件
 *.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
+# IDE 配置文件
+.vscode/
+.idea/
 
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
+# 操作系统文件
 .DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
+Thumbs.db
