@@ -1,56 +1,74 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 
 const IntegrationLevel = () => {
-  const [scale, setScale] = useState(1);
-  const [position, setPosition] = useState({ x: 0, y: 0 });
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const graphRef = useRef(null);
+  const [projects, setProjects] = useState([]);
+  const [selectedProject, setSelectedProject] = useState(null);
+  const [graphNodes, setGraphNodes] = useState([]);
+  const [graphLinks, setGraphLinks] = useState([]);
+  const [externalLinks, setExternalLinks] = useState([]);
+  const [requisitions, setRequisitions] = useState([]);
 
-  // 处理鼠标按下事件
-  const handleMouseDown = (e) => {
-    setIsDragging(true);
-    setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y });
-  };
+  // 模拟从后端获取项目数据
+  useEffect(() => {
+    // 这里应该从后端API获取数据
+    // 模拟数据，实际项目中会从服务器获取
+    const mockProjects = [
+      { id: 1, name: 'Mathematics Fundamentals', description: 'Basic math concepts' },
+      { id: 2, name: 'Physics Principles', description: 'Fundamental physics laws' },
+      { id: 3, name: 'Computer Science Basics', description: 'Programming fundamentals' }
+    ];
+    setProjects(mockProjects);
+  }, []);
 
-  // 处理鼠标移动事件
-  const handleMouseMove = (e) => {
-    if (isDragging) {
-      setPosition({ 
-        x: e.clientX - dragStart.x, 
-        y: e.clientY - dragStart.y 
-      });
+  // 当选择项目时，生成对应的graph数据
+  useEffect(() => {
+    if (selectedProject) {
+      // 模拟生成graph数据
+      const mockNodes = [
+        { id: 1, label: 'Concept 1', type: 'input' },
+        { id: 2, label: 'Concept 2', type: 'input' },
+        { id: 3, label: 'Concept 3', type: 'input' },
+        { id: 4, label: 'Relationship 1', type: 'connection' },
+        { id: 5, label: 'Concept 4', type: 'input' },
+        { id: 6, label: 'Concept 5', type: 'input' }
+      ];
+      
+      const mockLinks = [
+        { source: 1, target: 4 },
+        { source: 2, target: 4 },
+        { source: 4, target: 5 },
+        { source: 3, target: 6 },
+        { source: 5, target: 6 }
+      ];
+      
+      const mockExternalLinks = [
+        { id: 1, title: 'External Resource 1', url: '#' },
+        { id: 2, title: 'External Resource 2', url: '#' },
+        { id: 3, title: 'External Resource 3', url: '#' }
+      ];
+      
+      const mockRequisitions = [
+        { id: 1, title: 'Prerequisite 1' },
+        { id: 2, title: 'Prerequisite 2' },
+        { id: 3, title: 'Prerequisite 3' }
+      ];
+      
+      setGraphNodes(mockNodes);
+      setGraphLinks(mockLinks);
+      setExternalLinks(mockExternalLinks);
+      setRequisitions(mockRequisitions);
     }
+  }, [selectedProject]);
+
+  const handleProjectSelect = (project) => {
+    setSelectedProject(project);
   };
 
-  // 处理鼠标释放事件
-  const handleMouseUp = () => {
-    setIsDragging(false);
-  };
-
-  // 处理鼠标滚轮事件（缩放）
-  const handleWheel = (e) => {
-    e.preventDefault();
-    const delta = e.deltaY > 0 ? 0.9 : 1.1;
-    const newScale = Math.max(0.1, Math.min(3, scale * delta));
-    setScale(newScale);
-  };
-
-  // 重置视图
-  const resetView = () => {
-    setScale(1);
-    setPosition({ x: 0, y: 0 });
-  };
-
-  // 放大
-  const zoomIn = () => {
-    setScale(Math.min(3, scale * 1.2));
-  };
-
-  // 缩小
-  const zoomOut = () => {
-    setScale(Math.max(0.1, scale * 0.8));
+  const handleNodeClick = (node) => {
+    // 处理节点点击，实现graph导航
+    console.log('Node clicked:', node);
+    // 这里可以实现节点的展开/收起，或者导航到节点详情
   };
 
   return (
@@ -63,133 +81,100 @@ const IntegrationLevel = () => {
             <Link to="/input" className="nav-link">Input Level</Link>
           </div>
         </div>
-        <div className="header-actions">
-          <button onClick={resetView} className="btn btn-secondary">Reset View</button>
+      </div>
+      
+      {/* 项目选择 */}
+      <div className="project-selection">
+        <h3>Select Project</h3>
+        <div className="projects-list">
+          {projects.map(project => (
+            <div 
+              key={project.id}
+              className={`project-item ${selectedProject?.id === project.id ? 'selected' : ''}`}
+              onClick={() => handleProjectSelect(project)}
+            >
+              <h4>{project.name}</h4>
+              <p>{project.description}</p>
+            </div>
+          ))}
         </div>
       </div>
       
-      <div className="integration-content">
-        {/* Requisitions 部分 */}
-        <div className="requisitions-section">
-          <h3>Requisitions</h3>
-          <div className="requisitions-container">
-            <div className="requisition-box active">Requisition 1</div>
-            <div className="requisition-box">Requisition 2</div>
-            <div className="requisition-box">Requisition 3</div>
-          </div>
-        </div>
-        
-        {/* 主内容区域 */}
-        <div className="main-content">
-          {/* Graph 部分 */}
-          <div className="graph-section">
-            <div className="graph-header">
-              <h3>Graph</h3>
-              <div className="graph-controls">
-                <button onClick={zoomIn} className="control-btn">+</button>
-                <button onClick={zoomOut} className="control-btn">-</button>
-                <span className="scale-info">Scale: {Math.round(scale * 100)}%</span>
-              </div>
-            </div>
-            
-            <div 
-              className="graph-container"
-              ref={graphRef}
-              onMouseDown={handleMouseDown}
-              onMouseMove={handleMouseMove}
-              onMouseUp={handleMouseUp}
-              onMouseLeave={handleMouseUp}
-              onWheel={handleWheel}
-            >
-              <div 
-                className="graph-content"
-                style={{
-                  transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
-                  transformOrigin: '0 0'
-                }}
-              >
-                {/* 图形节点和连接线 */}
-                <svg width="800" height="600" viewBox="0 0 800 600">
-                  {/* 连接线 */}
-                  <g stroke="#007bff" strokeWidth="2">
-                    <line x1="100" y1="50" x2="200" y2="150" />
-                    <line x1="180" y1="50" x2="250" y2="150" />
-                    <line x1="260" y1="50" x2="300" y2="150" />
-                    <line x1="200" y1="180" x2="200" y2="250" />
-                    <line x1="250" y1="180" x2="200" y2="250" />
-                    <line x1="300" y1="180" x2="250" y2="250" />
-                    <line x1="200" y1="280" x2="150" y2="350" />
-                    <line x1="250" y1="280" x2="300" y2="350" />
-                    <line x1="200" y1="280" x2="250" y2="350" />
-                    <line x1="250" y1="280" x2="350" y2="450" />
-                    <line x1="300" y1="380" x2="350" y2="450" />
-                    <line x1="350" y1="480" x2="400" y2="550" />
-                    <line x1="300" y1="280" x2="600" y2="150" />
-                    <line x1="350" y1="380" x2="600" y2="250" />
-                    <line x1="400" y1="480" x2="600" y2="350" />
-                  </g>
-                  
-                  {/* 节点 */}
-                  <g>
-                    <rect x="180" y="130" width="80" height="40" fill="#28a745" stroke="#000" strokeWidth="2" />
-                    <text x="220" y="155" textAnchor="middle" fill="white" fontWeight="bold">Node 1</text>
-                    
-                    <rect x="230" y="130" width="80" height="40" fill="#28a745" stroke="#000" strokeWidth="2" />
-                    <text x="270" y="155" textAnchor="middle" fill="white" fontWeight="bold">Node 2</text>
-                    
-                    <rect x="280" y="130" width="80" height="40" fill="#28a745" stroke="#000" strokeWidth="2" />
-                    <text x="320" y="155" textAnchor="middle" fill="white" fontWeight="bold">Node 3</text>
-                    
-                    <rect x="180" y="230" width="80" height="40" fill="#28a745" stroke="#000" strokeWidth="2" />
-                    <text x="220" y="255" textAnchor="middle" fill="white" fontWeight="bold">Node 4</text>
-                    
-                    <rect x="230" y="230" width="80" height="40" fill="#28a745" stroke="#000" strokeWidth="2" />
-                    <text x="270" y="255" textAnchor="middle" fill="white" fontWeight="bold">Node 5</text>
-                    
-                    <rect x="130" y="330" width="80" height="40" fill="#28a745" stroke="#000" strokeWidth="2" />
-                    <text x="170" y="355" textAnchor="middle" fill="white" fontWeight="bold">Node 6</text>
-                    
-                    <rect x="230" y="330" width="80" height="40" fill="#28a745" stroke="#000" strokeWidth="2" />
-                    <text x="270" y="355" textAnchor="middle" fill="white" fontWeight="bold">Node 7</text>
-                    
-                    <rect x="280" y="330" width="80" height="40" fill="#28a745" stroke="#000" strokeWidth="2" />
-                    <text x="320" y="355" textAnchor="middle" fill="white" fontWeight="bold">Node 8</text>
-                    
-                    <rect x="330" y="430" width="80" height="40" fill="#28a745" stroke="#000" strokeWidth="2" />
-                    <text x="370" y="455" textAnchor="middle" fill="white" fontWeight="bold">Node 9</text>
-                    
-                    <rect x="380" y="530" width="80" height="40" fill="#28a745" stroke="#000" strokeWidth="2" />
-                    <text x="420" y="555" textAnchor="middle" fill="white" fontWeight="bold">Node 10</text>
-                  </g>
-                </svg>
-              </div>
+      {selectedProject && (
+        <div className="integration-content">
+          {/* 顶部Requisitions */}
+          <div className="requisitions-section">
+            <h3>Requisitions</h3>
+            <div className="requisitions-container">
+              {requisitions.map(req => (
+                <div key={req.id} className="requisition-item">
+                  {req.title}
+                </div>
+              ))}
             </div>
           </div>
           
-          {/* External Links 部分 */}
-          <div className="external-links-section">
-            <h3>External Links</h3>
-            <div className="external-links-container">
-              <div className="external-link-box">
-                <h4>Link 1</h4>
-                <p>Description of external link 1</p>
+          <div className="main-content">
+            {/* 左侧Graph区域 */}
+            <div className="graph-section">
+              <div className="graph-header">
+                <h3>Graph</h3>
+                <div className="graph-controls">
+                  <button className="control-btn">Zoom In</button>
+                  <button className="control-btn">Zoom Out</button>
+                  <button className="control-btn">Reset View</button>
+                </div>
               </div>
-              <div className="external-link-box">
-                <h4>Link 2</h4>
-                <p>Description of external link 2</p>
+              <div className="graph-container">
+                <div className="graph-canvas">
+                  {/* 简化的Graph可视化 */}
+                  <div className="graph-visualization">
+                    {graphNodes.map(node => (
+                      <div 
+                        key={node.id}
+                        className={`graph-node ${node.type}`}
+                        style={{
+                          left: `${(node.id * 15) % 70 + 15}%`,
+                          top: `${Math.floor(node.id / 2) * 20 + 10}%`
+                        }}
+                        onClick={() => handleNodeClick(node)}
+                      >
+                        {node.label}
+                      </div>
+                    ))}
+                    {graphLinks.map((link, index) => (
+                      <svg key={index} className="graph-link" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none' }}>
+                        <line 
+                          x1={`${(link.source * 15) % 70 + 20}%`}
+                          y1={`${Math.floor(link.source / 2) * 20 + 20}%`}
+                          x2={`${(link.target * 15) % 70 + 20}%`}
+                          y2={`${Math.floor(link.target / 2) * 20 + 20}%`}
+                          stroke="#667eea"
+                          strokeWidth="2"
+                        />
+                      </svg>
+                    ))}
+                  </div>
+                </div>
               </div>
-              <div className="external-link-box">
-                <h4>Link 3</h4>
-                <p>Description of external link 3</p>
-              </div>
-              <div className="external-link-box">
-                <h4>Link 4</h4>
-                <p>Description of external link 4</p>
+            </div>
+            
+            {/* 右侧External Links */}
+            <div className="external-links-section">
+              <h3>External Links</h3>
+              <div className="external-links-container">
+                {externalLinks.map(link => (
+                  <div key={link.id} className="external-link-item">
+                    <a href={link.url} target="_blank" rel="noopener noreferrer">
+                      {link.title}
+                    </a>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
       
       <style>{`
         .integration-level {
@@ -197,6 +182,7 @@ const IntegrationLevel = () => {
           max-width: 1400px;
           margin: 0 auto;
           min-height: 80vh;
+          background: #f8f9fa;
         }
         
         .integration-header {
@@ -208,13 +194,8 @@ const IntegrationLevel = () => {
           border-bottom: 2px solid #e0e0e0;
         }
         
-        .header-left {
-          display: flex;
-          flex-direction: column;
-        }
-        
-        .integration-header h2 {
-          margin: 0 0 10px 0;
+        .header-left h2 {
+          margin: 0 0 15px 0;
           color: #333;
           font-size: 28px;
         }
@@ -228,10 +209,9 @@ const IntegrationLevel = () => {
           text-decoration: none;
           color: #667eea;
           font-weight: 500;
-          padding: 6px 12px;
+          padding: 8px 16px;
           border-radius: 6px;
           transition: all 0.2s ease;
-          font-size: 14px;
         }
         
         .nav-link:hover {
@@ -239,58 +219,62 @@ const IntegrationLevel = () => {
           transform: translateY(-1px);
         }
         
-        .header-actions {
-          display: flex;
-          gap: 10px;
+        /* 项目选择 */
+        .project-selection {
+          margin-bottom: 30px;
         }
         
-        .btn {
-          padding: 8px 16px;
-          border: none;
-          border-radius: 6px;
+        .project-selection h3 {
+          margin-bottom: 15px;
+          color: #333;
+        }
+        
+        .projects-list {
+          display: flex;
+          gap: 20px;
+          overflow-x: auto;
+          padding: 10px 0;
+        }
+        
+        .project-item {
+          flex: 0 0 250px;
+          padding: 20px;
+          background: white;
+          border-radius: 12px;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.1);
           cursor: pointer;
-          font-size: 14px;
-          font-weight: 500;
-          text-decoration: none;
           transition: all 0.2s ease;
         }
         
-        .btn-primary {
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          color: white;
+        .project-item:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         }
         
-        .btn-primary:hover {
-          transform: translateY(-1px);
-          box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
+        .project-item.selected {
+          border: 2px solid #667eea;
+          box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
         }
         
-        .btn-secondary {
-          background: #f0f0f0;
+        .project-item h4 {
+          margin: 0 0 10px 0;
+          color: #333;
+        }
+        
+        .project-item p {
+          margin: 0;
           color: #666;
+          font-size: 14px;
         }
         
-        .btn-secondary:hover {
-          background: #e0e0e0;
-          transform: translateY(-1px);
-        }
-        
-        .integration-content {
-          display: flex;
-          flex-direction: column;
-          gap: 30px;
-        }
-        
-        /* Requisitions 部分 */
+        /* Requisitions */
         .requisitions-section {
           margin-bottom: 20px;
         }
         
         .requisitions-section h3 {
-          margin: 0 0 15px 0;
+          margin-bottom: 10px;
           color: #333;
-          font-size: 20px;
-          color: #dc3545;
         }
         
         .requisitions-container {
@@ -299,40 +283,28 @@ const IntegrationLevel = () => {
           flex-wrap: wrap;
         }
         
-        .requisition-box {
-          padding: 10px 20px;
-          border: 2px solid #000;
-          border-radius: 4px;
-          background: white;
-          font-weight: bold;
-          cursor: pointer;
-          transition: all 0.2s ease;
-        }
-        
-        .requisition-box.active {
-          background: #dc3545;
-          color: white;
-        }
-        
-        .requisition-box:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        .requisition-item {
+          padding: 10px 16px;
+          background: #ffebee;
+          border-left: 4px solid #f44336;
+          border-radius: 6px;
+          color: #c62828;
+          font-weight: 500;
         }
         
         /* 主内容区域 */
         .main-content {
-          display: grid;
-          grid-template-columns: 1fr 300px;
-          gap: 30px;
-          height: 70vh;
+          display: flex;
+          gap: 20px;
+          min-height: 600px;
         }
         
-        /* Graph 部分 */
+        /* Graph区域 */
         .graph-section {
-          display: flex;
-          flex-direction: column;
-          border: 2px solid #000;
-          border-radius: 8px;
+          flex: 1;
+          background: white;
+          border-radius: 12px;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.1);
           overflow: hidden;
         }
         
@@ -341,126 +313,148 @@ const IntegrationLevel = () => {
           justify-content: space-between;
           align-items: center;
           padding: 15px 20px;
+          border-bottom: 1px solid #e0e0e0;
           background: #f8f9fa;
-          border-bottom: 2px solid #000;
         }
         
         .graph-header h3 {
           margin: 0;
           color: #333;
-          font-size: 18px;
-          color: #dc3545;
         }
         
         .graph-controls {
           display: flex;
-          align-items: center;
           gap: 10px;
         }
         
         .control-btn {
-          width: 30px;
-          height: 30px;
-          border: 1px solid #000;
+          padding: 6px 12px;
+          border: 1px solid #ddd;
           background: white;
           border-radius: 4px;
           cursor: pointer;
-          font-size: 16px;
-          font-weight: bold;
-          display: flex;
-          align-items: center;
-          justify-content: center;
+          font-size: 14px;
           transition: all 0.2s ease;
         }
         
         .control-btn:hover {
           background: #f0f0f0;
-          transform: scale(1.05);
-        }
-        
-        .scale-info {
-          font-size: 14px;
-          color: #666;
-          min-width: 100px;
         }
         
         .graph-container {
-          flex: 1;
-          overflow: hidden;
           position: relative;
-          background: white;
-          cursor: ${isDragging ? 'grabbing' : 'grab'};
+          height: 500px;
+          overflow: auto;
         }
         
-        .graph-content {
+        .graph-canvas {
+          position: relative;
+          width: 100%;
+          height: 100%;
+          min-width: 800px;
+          min-height: 600px;
+        }
+        
+        .graph-visualization {
+          position: relative;
+          width: 100%;
+          height: 100%;
+        }
+        
+        .graph-node {
+          position: absolute;
+          padding: 12px 16px;
+          background: #e3f2fd;
+          border: 2px solid #667eea;
+          border-radius: 8px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          z-index: 10;
+          min-width: 100px;
+          text-align: center;
+        }
+        
+        .graph-node:hover {
+          transform: scale(1.05);
+          box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+        
+        .graph-node.input {
+          background: #e8f5e8;
+          border-color: #4caf50;
+        }
+        
+        .graph-node.connection {
+          background: #fff3e0;
+          border-color: #ff9800;
+        }
+        
+        .graph-link {
           position: absolute;
           top: 0;
           left: 0;
-          transition: transform 0.1s ease-out;
+          width: 100%;
+          height: 100%;
+          pointer-events: none;
+          z-index: 1;
         }
         
-        /* External Links 部分 */
+        /* External Links */
         .external-links-section {
-          display: flex;
-          flex-direction: column;
-          border: 2px solid #000;
-          border-radius: 8px;
+          width: 300px;
+          background: white;
+          border-radius: 12px;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.1);
           overflow: hidden;
         }
         
         .external-links-section h3 {
-          margin: 0;
           padding: 15px 20px;
-          background: #f8f9fa;
-          border-bottom: 2px solid #000;
+          margin: 0;
           color: #333;
-          font-size: 18px;
-          color: #dc3545;
+          border-bottom: 1px solid #e0e0e0;
+          background: #f8f9fa;
         }
         
         .external-links-container {
-          flex: 1;
           padding: 20px;
-          overflow-y: auto;
-          display: flex;
-          flex-direction: column;
-          gap: 15px;
         }
         
-        .external-link-box {
-          padding: 15px;
-          border: 2px solid #28a745;
-          border-radius: 4px;
-          background: white;
+        .external-link-item {
+          margin-bottom: 15px;
+          padding: 10px;
+          background: #f8f9fa;
+          border-radius: 6px;
           transition: all 0.2s ease;
         }
         
-        .external-link-box:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+        .external-link-item:hover {
+          background: #e3f2fd;
         }
         
-        .external-link-box h4 {
-          margin: 0 0 5px 0;
-          color: #333;
-          font-size: 16px;
+        .external-link-item a {
+          text-decoration: none;
+          color: #667eea;
+          font-weight: 500;
+          transition: color 0.2s ease;
         }
         
-        .external-link-box p {
-          margin: 0;
-          color: #666;
-          font-size: 14px;
+        .external-link-item a:hover {
+          color: #764ba2;
+          text-decoration: underline;
         }
         
-        @media (max-width: 1024px) {
+        @media (max-width: 1200px) {
           .main-content {
-            grid-template-columns: 1fr;
-            grid-template-rows: 1fr auto;
-            height: auto;
+            flex-direction: column;
           }
           
           .external-links-section {
-            max-height: 400px;
+            width: 100%;
+          }
+          
+          .graph-container {
+            height: 400px;
           }
         }
         
@@ -476,24 +470,12 @@ const IntegrationLevel = () => {
             justify-content: space-between;
           }
           
-          .header-actions {
-            width: 100%;
-            justify-content: flex-end;
-          }
-          
-          .requisitions-container {
-            justify-content: center;
-          }
-          
-          .graph-header {
+          .projects-list {
             flex-direction: column;
-            align-items: flex-start;
-            gap: 10px;
           }
           
-          .graph-controls {
-            width: 100%;
-            justify-content: flex-end;
+          .project-item {
+            flex: 1 1 100%;
           }
         }
       `}</style>
