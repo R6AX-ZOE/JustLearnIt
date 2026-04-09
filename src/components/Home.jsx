@@ -19,7 +19,8 @@ const Home = () => {
         <h1>Welcome to JustLearnIt</h1>
         <div className="nav-menu">
           <Link to="/" className="nav-link active">Home</Link>
-          <Link to="/learning" className="nav-link">Learning Projects</Link>
+          <Link to="/input" className="nav-link">Input Level</Link>
+          <Link to="/integration" className="nav-link">Integration Level</Link>
         </div>
         <div className="user-info">
           <span>Hello, {user?.username || 'User'}</span>

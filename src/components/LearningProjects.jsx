@@ -477,8 +477,14 @@ const LearningProjects = () => {
   return (
     <div className="learning-projects">
       <div className="learning-header">
-        <h2>Learning Projects</h2>
-        <button onClick={handleCreateProject} className="create-btn">Create New Project</button>
+        <div className="header-left">
+          <h2>Input Level</h2>
+          <div className="navigation-links">
+            <a href="/" className="nav-link">Home</a>
+            <a href="/integration" className="nav-link">Integration Level</a>
+          </div>
+        </div>
+        <button onClick={handleCreateProject} className="create-btn">Create New Input</button>
       </div>
 
       <div className="learning-content">
@@ -831,6 +837,32 @@ const LearningProjects = () => {
           margin: 0;
           color: #333;
           font-size: 28px;
+          margin-bottom: 10px;
+        }
+
+        .header-left {
+          display: flex;
+          flex-direction: column;
+        }
+
+        .navigation-links {
+          display: flex;
+          gap: 15px;
+        }
+
+        .nav-link {
+          text-decoration: none;
+          color: #667eea;
+          font-weight: 500;
+          padding: 6px 12px;
+          border-radius: 6px;
+          transition: all 0.2s ease;
+          font-size: 14px;
+        }
+
+        .nav-link:hover {
+          background: #f0f0f0;
+          transform: translateY(-1px);
         }
 
         .create-btn {

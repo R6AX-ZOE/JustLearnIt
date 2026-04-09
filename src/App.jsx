@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import Login from './components/Auth/Login';
 import Home from './components/Home';
 import LearningProjects from './components/LearningProjects';
+import IntegrationLevel from './components/IntegrationLevel';
 import './App.css';
 
 // 检查用户是否已登录
@@ -28,9 +29,14 @@ function App() {
               <Home />
             </ProtectedRoute>
           } />
-          <Route path="/learning" element={
+          <Route path="/input" element={
             <ProtectedRoute>
               <LearningProjects />
+            </ProtectedRoute>
+          } />
+          <Route path="/integration" element={
+            <ProtectedRoute>
+              <IntegrationLevel />
             </ProtectedRoute>
           } />
           <Route path="/login" element={<Login />} />
