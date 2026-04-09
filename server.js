@@ -4,6 +4,8 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import fs from 'fs';
 import path from 'path';
+import learningRoutes from './routes/learning.js';
+import uploadRoutes from './routes/upload.js';
 
 const app = express();
 const PORT = process.env.PORT || 3002;
@@ -11,6 +13,14 @@ const PORT = process.env.PORT || 3002;
 // 中间件
 app.use(cors());
 app.use(express.json());
+
+// 添加请求日志中间件
+app.use((req, res, next) => {
+  console.log(`\n=== ${new Date().toISOString()} ===`);
+  console.log(`${req.method} ${req.url}`);
+  console.log('Headers:', JSON.stringify(req.headers, null, 2));
+  next();
+});
 
 // 用户数据文件路径
 const USERS_FILE = path.join(process.cwd(), 'users.json');
@@ -39,13 +49,22 @@ const saveUsers = (users) => {
   }
 };
 
+// 加载用户数据
+const users = loadUsers();
+
+// 学习项目路由
+app.use('/api/learning', learningRoutes);
+
+// 图片上传路由
+app.use('/api/upload', uploadRoutes);
+
+// 静态文件服务 - 提供uploads目录中的图片
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+
 // 根路径路由
 app.get('/', (req, res) => {
   res.json({ message: 'JustLearnIt API Server', users });
 });
-
-// 加载用户数据
-const users = loadUsers();
 
 // 登录路由
 app.post('/api/auth/login', async (req, res) => {

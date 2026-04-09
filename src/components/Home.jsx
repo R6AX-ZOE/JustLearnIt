@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 
 const Home = () => {
   // 从localStorage获取用户信息
@@ -16,6 +17,10 @@ const Home = () => {
     <div className="home-container">
       <div className="header">
         <h1>Welcome to JustLearnIt</h1>
+        <div className="nav-menu">
+          <Link to="/" className="nav-link active">Home</Link>
+          <Link to="/learning" className="nav-link">Learning Projects</Link>
+        </div>
         <div className="user-info">
           <span>Hello, {user?.username || 'User'}</span>
           <button onClick={handleLogout} className="logout-button">Logout</button>
@@ -59,6 +64,34 @@ const Home = () => {
           </div>
         </section>
       </div>
+
+      <style jsx>{`
+        .nav-menu {
+          display: flex;
+          gap: 20px;
+          margin-bottom: 30px;
+          border-bottom: 1px solid #ddd;
+          padding-bottom: 10px;
+        }
+
+        .nav-link {
+          padding: 10px 15px;
+          text-decoration: none;
+          color: #666;
+          border-radius: 4px 4px 0 0;
+        }
+
+        .nav-link:hover {
+          color: #333;
+          background-color: #f5f5f5;
+        }
+
+        .nav-link.active {
+          color: #2196F3;
+          font-weight: bold;
+          border-bottom: 2px solid #2196F3;
+        }
+      `}</style>
     </div>
   );
 };

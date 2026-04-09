@@ -228,3 +228,78 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+/* 折叠功能样式 */
+.collapsible-header {
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: color 0.2s;
+}
+
+.collapsible-header:hover {
+  color: #4CAF50;
+}
+
+.collapse-icon {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  transition: transform 0.2s ease;
+  font-size: 12px;
+  color: #666;
+}
+
+.collapse-icon.collapsed {
+  transform: rotate(-90deg);
+}
+
+.collapse-icon-placeholder {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+}
+
+.sidebar-header {
+  margin-bottom: 15px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.sidebar-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+
+.directory-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.directory-item:hover {
+  background-color: #f0f0f0;
+}
+
+.directory-item.active {
+  background-color: #e8f5e9;
+  color: #4CAF50;
+}
+
+.directory-item .collapse-icon {
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 2px;
+}
+
+.directory-item .collapse-icon:hover {
+  background-color: #ddd;
+}

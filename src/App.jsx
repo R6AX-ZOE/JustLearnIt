@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './components/Auth/Login';
 import Home from './components/Home';
+import LearningProjects from './components/LearningProjects';
 import './App.css';
 
 // 检查用户是否已登录
@@ -25,6 +26,11 @@ function App() {
           <Route path="/" element={
             <ProtectedRoute>
               <Home />
+            </ProtectedRoute>
+          } />
+          <Route path="/learning" element={
+            <ProtectedRoute>
+              <LearningProjects />
             </ProtectedRoute>
           } />
           <Route path="/login" element={<Login />} />
