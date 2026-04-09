@@ -24,7 +24,7 @@ const IntegrationLevel = () => {
   const [newNode, setNewNode] = useState({ title: '', type: 'input' });
   const [showLinkForm, setShowLinkForm] = useState(false);
   const [editingLink, setEditingLink] = useState(null);
-  const [newLink, setNewLink] = useState({ title: '', url: '', nodeIds: [] });
+  const [newLink, setNewLink] = useState({ title: '', targetNodeId: '', nodeIds: [] });
   const [showRequisitionForm, setShowRequisitionForm] = useState(false);
   const [newRequisition, setNewRequisition] = useState({ title: '' });
 
@@ -117,9 +117,9 @@ const IntegrationLevel = () => {
       ];
       
       const mockExternalLinks = [
-        { id: 1, title: 'External Resource 1', url: '#', nodeIds: ['1', '2'] },
-        { id: 2, title: 'External Resource 2', url: '#', nodeIds: ['3'] },
-        { id: 3, title: 'External Resource 3', url: '', nodeIds: ['4', '5', '6'] }
+        { id: 1, title: 'Link to Concept 3', targetNodeId: '3', nodeIds: ['1', '2'] },
+        { id: 2, title: 'Link to Concept 5', targetNodeId: '5', nodeIds: ['3'] },
+        { id: 3, title: 'Link to Concept 1', targetNodeId: '1', nodeIds: ['4', '5', '6'] }
       ];
       
       const mockRequisitions = [
@@ -142,6 +142,19 @@ const IntegrationLevel = () => {
       className: 'graph-edge'
     }, eds));
   }, []);
+
+  // 删除边
+  const handleDeleteEdge = (edgeId) => {
+    setEdges(edges.filter(edge => edge.id !== edgeId));
+  };
+
+  // 处理边的点击
+  const handleEdgeClick = (event, edge) => {
+    // 这里可以添加边的编辑或删除功能
+    if (window.confirm('Delete this edge?')) {
+      handleDeleteEdge(edge.id);
+    }
+  };
 
   const handleProjectSelect = (project) => {
     setSelectedProject(project);
@@ -218,18 +231,18 @@ const IntegrationLevel = () => {
     const newLinkObj = {
       id: externalLinks.length + 1,
       title: newLink.title,
-      url: newLink.url,
+      targetNodeId: newLink.targetNodeId,
       nodeIds: newLink.nodeIds
     };
     setExternalLinks([...externalLinks, newLinkObj]);
-    setNewLink({ title: '', url: '', nodeIds: [] });
+    setNewLink({ title: '', targetNodeId: '', nodeIds: [] });
     setShowLinkForm(false);
   };
 
   // 编辑外部链接
   const handleEditLink = (link) => {
     setEditingLink(link);
-    setNewLink({ title: link.title, url: link.url, nodeIds: [...link.nodeIds] });
+    setNewLink({ title: link.title, targetNodeId: link.targetNodeId, nodeIds: [...link.nodeIds] });
     setShowLinkForm(true);
   };
 
@@ -238,12 +251,12 @@ const IntegrationLevel = () => {
     if (editingLink) {
       const updatedLinks = externalLinks.map(link => 
         link.id === editingLink.id 
-          ? { ...link, title: newLink.title, url: newLink.url, nodeIds: newLink.nodeIds }
+          ? { ...link, title: newLink.title, targetNodeId: newLink.targetNodeId, nodeIds: newLink.nodeIds }
           : link
       );
       setExternalLinks(updatedLinks);
       setEditingLink(null);
-      setNewLink({ title: '', url: '', nodeIds: [] });
+      setNewLink({ title: '', targetNodeId: '', nodeIds: [] });
       setShowLinkForm(false);
     }
   };
@@ -340,6 +353,7 @@ const IntegrationLevel = () => {
                   onEdgesChange={onEdgesChange}
                   onConnect={onConnect}
                   onNodeClick={handleNodeClick}
+                  onEdgeClick={handleEdgeClick}
                   connectionLineType={ConnectionLineType.Bezier}
                   defaultZoom={1.2}
                   minZoom={0.5}
@@ -376,10 +390,21 @@ const IntegrationLevel = () => {
                     filteredExternalLinks.map(link => (
                       <div key={link.id} className="external-link-item">
                         <div className="link-content">
-                          {link.url ? (
-                            <a href={link.url} target="_blank" rel="noopener noreferrer">
+                          {link.targetNodeId ? (
+                            <button 
+                              className="node-link-btn"
+                              onClick={() => {
+                                // 查找目标节点
+                                const targetNode = nodes.find(node => node.id === link.targetNodeId);
+                                if (targetNode) {
+                                  // 这里可以实现跳转到目标节点的逻辑
+                                  alert(`Link to: ${targetNode.data.label}`);
+                                  // 实际项目中可以实现节点定位或高亮
+                                }
+                              }}
+                            >
                               {link.title}
-                            </a>
+                            </button>
                           ) : (
                             <span>{link.title}</span>
                           )}
@@ -491,13 +516,17 @@ const IntegrationLevel = () => {
                   />
                 </div>
                 <div className="form-group">
-                  <label>URL (optional)</label>
-                  <input 
-                    type="url" 
-                    value={newLink.url}
-                    onChange={(e) => setNewLink({ ...newLink, url: e.target.value })}
-                    placeholder="Enter external URL"
-                  />
+                  <label>Target Node</label>
+                  <select 
+                    value={newLink.targetNodeId}
+                    onChange={(e) => setNewLink({ ...newLink, targetNodeId: e.target.value })}
+                    required
+                  >
+                    <option value="">Select target node</option>
+                    {nodes.map(node => (
+                      <option key={node.id} value={node.id}>{node.data.label}</option>
+                    ))}
+                  </select>
                 </div>
                 <div className="form-group">
                   <label>Apply to Nodes</label>
@@ -857,6 +886,23 @@ const IntegrationLevel = () => {
         .link-content span {
           color: #666;
           font-weight: 500;
+        }
+        
+        .node-link-btn {
+          background: none;
+          border: none;
+          color: #667eea;
+          font-weight: 500;
+          text-align: left;
+          cursor: pointer;
+          padding: 0;
+          font-size: 14px;
+          transition: color 0.2s ease;
+        }
+        
+        .node-link-btn:hover {
+          color: #764ba2;
+          text-decoration: underline;
         }
         
         .link-actions {
