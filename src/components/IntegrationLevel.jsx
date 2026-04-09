@@ -27,6 +27,8 @@ const IntegrationLevel = () => {
   const [newLink, setNewLink] = useState({ title: '', targetNodeId: '', nodeIds: [] });
   const [showRequisitionForm, setShowRequisitionForm] = useState(false);
   const [newRequisition, setNewRequisition] = useState({ title: '' });
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [edgeToDelete, setEdgeToDelete] = useState(null);
 
   // 模拟从后端获取项目数据
   useEffect(() => {
@@ -148,12 +150,11 @@ const IntegrationLevel = () => {
     setEdges(edges.filter(edge => edge.id !== edgeId));
   };
 
-  // 处理边的点击
-  const handleEdgeClick = (event, edge) => {
-    // 这里可以添加边的编辑或删除功能
-    if (window.confirm('Delete this edge?')) {
-      handleDeleteEdge(edge.id);
-    }
+  // 处理边的双击
+  const handleEdgeDoubleClick = (event, edge) => {
+    // 显示自定义删除确认对话框
+    setEdgeToDelete(edge);
+    setShowDeleteConfirm(true);
   };
 
   const handleProjectSelect = (project) => {
@@ -353,7 +354,7 @@ const IntegrationLevel = () => {
                   onEdgesChange={onEdgesChange}
                   onConnect={onConnect}
                   onNodeClick={handleNodeClick}
-                  onEdgeClick={handleEdgeClick}
+                  onEdgeDoubleClick={handleEdgeDoubleClick}
                   connectionLineType={ConnectionLineType.Bezier}
                   defaultZoom={1.2}
                   minZoom={0.5}
@@ -605,6 +606,54 @@ const IntegrationLevel = () => {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* 删除确认对话框 */}
+      {showDeleteConfirm && (
+        <div className="dialog-overlay">
+          <div className="dialog">
+            <div className="dialog-header">
+              <h3>Confirm Deletion</h3>
+              <button 
+                className="close-btn"
+                onClick={() => {
+                  setShowDeleteConfirm(false);
+                  setEdgeToDelete(null);
+                }}
+              >
+                ×
+              </button>
+            </div>
+            <div className="dialog-content">
+              <p>Are you sure you want to delete this edge?</p>
+              <div className="form-actions">
+                <button 
+                  type="button" 
+                  className="btn btn-danger"
+                  onClick={() => {
+                    if (edgeToDelete) {
+                      handleDeleteEdge(edgeToDelete.id);
+                    }
+                    setShowDeleteConfirm(false);
+                    setEdgeToDelete(null);
+                  }}
+                >
+                  Delete
+                </button>
+                <button 
+                  type="button" 
+                  className="btn btn-secondary"
+                  onClick={() => {
+                    setShowDeleteConfirm(false);
+                    setEdgeToDelete(null);
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1092,6 +1141,17 @@ const IntegrationLevel = () => {
         
         .btn-secondary:hover {
           background: #e0e0e0;
+        }
+        
+        .btn-danger {
+          background: #ffebee;
+          color: #c62828;
+          border: 1px solid #f44336;
+        }
+        
+        .btn-danger:hover {
+          background: #ffcdd2;
+          box-shadow: 0 4px 12px rgba(244, 67, 54, 0.4);
         }
         
         /* ReactFlow 自定义样式 */
