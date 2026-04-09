@@ -165,6 +165,12 @@ const IntegrationLevel = () => {
     // 处理节点点击，实现graph导航
     setSelectedNode(node);
     console.log('Node clicked:', node);
+    // 更新节点的选中状态
+    const updatedNodes = nodes.map(n => ({
+      ...n,
+      className: `graph-node ${n.data.type || 'input'} ${n.id === node.id ? 'selected' : ''}`
+    }));
+    setNodes(updatedNodes);
   };
 
   // 添加节点
@@ -196,9 +202,12 @@ const IntegrationLevel = () => {
           ? {
               ...node,
               data: { ...node.data, label: newNode.title, type: newNode.type },
-              className: `graph-node ${newNode.type}`
+              className: `graph-node ${newNode.type} ${node.id === selectedNode?.id ? 'selected' : ''}`
             }
-          : node
+          : {
+              ...node,
+              className: `graph-node ${node.data.type || 'input'} ${node.id === selectedNode?.id ? 'selected' : ''}`
+            }
       );
       setNodes(updatedNodes);
       setEditingNode(null);
@@ -1174,6 +1183,13 @@ const IntegrationLevel = () => {
         .graph-node.connection {
           background: #fff3e0;
           border: 2px solid #ff9800;
+        }
+        
+        .graph-node.selected {
+          border: 3px solid #667eea;
+          box-shadow: 0 0 15px rgba(102, 126, 234, 0.5);
+          transform: scale(1.05);
+          transition: all 0.2s ease;
         }
         
         .graph-edge {
