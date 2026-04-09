@@ -27,6 +27,8 @@ const IntegrationLevel = () => {
   const [newLink, setNewLink] = useState({ title: '', targetNodeId: '', nodeIds: [] });
   const [showRequisitionForm, setShowRequisitionForm] = useState(false);
   const [newRequisition, setNewRequisition] = useState({ title: '' });
+  const [showApplicationForm, setShowApplicationForm] = useState(false);
+  const [newApplication, setNewApplication] = useState({ title: '' });
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [edgeToDelete, setEdgeToDelete] = useState(null);
 
@@ -50,37 +52,67 @@ const IntegrationLevel = () => {
         {
           id: '1',
           position: { x: 100, y: 100 },
-          data: { label: 'Concept 1', type: 'input' },
+          data: { 
+            label: 'Concept 1', 
+            type: 'input',
+            prerequisites: [],
+            applications: ['4']
+          },
           className: 'graph-node input'
         },
         {
           id: '2',
           position: { x: 300, y: 100 },
-          data: { label: 'Concept 2', type: 'input' },
+          data: { 
+            label: 'Concept 2', 
+            type: 'input',
+            prerequisites: [],
+            applications: ['4']
+          },
           className: 'graph-node input'
         },
         {
           id: '3',
           position: { x: 500, y: 100 },
-          data: { label: 'Concept 3', type: 'input' },
+          data: { 
+            label: 'Concept 3', 
+            type: 'input',
+            prerequisites: [],
+            applications: ['4']
+          },
           className: 'graph-node input'
         },
         {
           id: '4',
           position: { x: 300, y: 200 },
-          data: { label: 'Relationship 1', type: 'connection' },
+          data: { 
+            label: 'Relationship 1', 
+            type: 'connection',
+            prerequisites: ['1', '2', '3'],
+            applications: ['5', '6']
+          },
           className: 'graph-node connection'
         },
         {
           id: '5',
           position: { x: 300, y: 300 },
-          data: { label: 'Concept 4', type: 'input' },
+          data: { 
+            label: 'Concept 4', 
+            type: 'input',
+            prerequisites: ['4'],
+            applications: []
+          },
           className: 'graph-node input'
         },
         {
           id: '6',
           position: { x: 500, y: 300 },
-          data: { label: 'Concept 5', type: 'input' },
+          data: { 
+            label: 'Concept 5', 
+            type: 'input',
+            prerequisites: ['4'],
+            applications: []
+          },
           className: 'graph-node input'
         }
       ];
@@ -278,18 +310,90 @@ const IntegrationLevel = () => {
 
   // 添加前置项
   const handleAddRequisition = () => {
-    const newRequisitionObj = {
-      id: requisitions.length + 1,
-      title: newRequisition.title
-    };
-    setRequisitions([...requisitions, newRequisitionObj]);
-    setNewRequisition({ title: '' });
-    setShowRequisitionForm(false);
+    if (selectedNode) {
+      // 这里应该从后端API添加前置项
+      console.log('Adding requisition:', newRequisition);
+      // 模拟添加前置项
+      const updatedNodes = nodes.map(node => 
+        node.id === selectedNode.id 
+          ? { 
+              ...node, 
+              data: { 
+                ...node.data, 
+                prerequisites: [...(node.data.prerequisites || []), newRequisition.title]
+              } 
+            }
+          : node
+      );
+      setNodes(updatedNodes);
+      setNewRequisition({ title: '' });
+      setShowRequisitionForm(false);
+    }
   };
 
   // 删除前置项
-  const handleDeleteRequisition = (reqId) => {
-    setRequisitions(requisitions.filter(req => req.id !== reqId));
+  const handleDeleteRequisition = (requisitionId) => {
+    if (selectedNode) {
+      // 这里应该从后端API删除前置项
+      console.log('Deleting requisition:', requisitionId);
+      // 模拟删除前置项
+      const updatedNodes = nodes.map(node => 
+        node.id === selectedNode.id 
+          ? { 
+              ...node, 
+              data: { 
+                ...node.data, 
+                prerequisites: (node.data.prerequisites || []).filter(id => id !== requisitionId)
+              } 
+            }
+          : node
+      );
+      setNodes(updatedNodes);
+    }
+  };
+
+  // 添加应用
+  const handleAddApplication = () => {
+    if (selectedNode) {
+      // 这里应该从后端API添加应用
+      console.log('Adding application:', newApplication);
+      // 模拟添加应用
+      const updatedNodes = nodes.map(node => 
+        node.id === selectedNode.id 
+          ? { 
+              ...node, 
+              data: { 
+                ...node.data, 
+                applications: [...(node.data.applications || []), newApplication.title]
+              } 
+            }
+          : node
+      );
+      setNodes(updatedNodes);
+      setNewApplication({ title: '' });
+      setShowApplicationForm(false);
+    }
+  };
+
+  // 删除应用
+  const handleDeleteApplication = (applicationId) => {
+    if (selectedNode) {
+      // 这里应该从后端API删除应用
+      console.log('Deleting application:', applicationId);
+      // 模拟删除应用
+      const updatedNodes = nodes.map(node => 
+        node.id === selectedNode.id 
+          ? { 
+              ...node, 
+              data: { 
+                ...node.data, 
+                applications: (node.data.applications || []).filter(id => id !== applicationId)
+              } 
+            }
+          : node
+      );
+      setNodes(updatedNodes);
+    }
   };
 
   // 过滤显示的外部链接（只显示焦点节点的链接）
@@ -385,6 +489,76 @@ const IntegrationLevel = () => {
                   <div className="node-info">
                     <p><strong>Label:</strong> {selectedNode.data.label}</p>
                     <p><strong>Type:</strong> {selectedNode.data.type}</p>
+                  </div>
+                </div>
+              )}
+              
+              {/* 前置项管理 */}
+              {selectedNode && (
+                <div className="prerequisites-section">
+                  <div className="section-header">
+                    <h3>Prerequisites</h3>
+                    <button 
+                      className="control-btn"
+                      onClick={() => setShowRequisitionForm(true)}
+                    >
+                      Add
+                    </button>
+                  </div>
+                  <div className="prerequisites-list">
+                    {selectedNode?.data?.prerequisites?.length > 0 ? (
+                      selectedNode.data.prerequisites.map((prereqId, index) => {
+                        const prereqNode = nodes.find(n => n.id === prereqId);
+                        return (
+                          <div key={index} className="prerequisite-item">
+                            <span>{prereqNode?.data?.label || `Node ${prereqId}`}</span>
+                            <button 
+                              className="action-btn delete-btn"
+                              onClick={() => handleDeleteRequisition(prereqId)}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <p className="no-items">No prerequisites</p>
+                    )}
+                  </div>
+                </div>
+              )}
+              
+              {/* 应用管理 */}
+              {selectedNode && (
+                <div className="applications-section">
+                  <div className="section-header">
+                    <h3>Applications</h3>
+                    <button 
+                      className="control-btn"
+                      onClick={() => setShowApplicationForm(true)}
+                    >
+                      Add
+                    </button>
+                  </div>
+                  <div className="applications-list">
+                    {selectedNode?.data?.applications?.length > 0 ? (
+                      selectedNode.data.applications.map((appId, index) => {
+                        const appNode = nodes.find(n => n.id === appId);
+                        return (
+                          <div key={index} className="application-item">
+                            <span>{appNode?.data?.label || `Node ${appId}`}</span>
+                            <button 
+                              className="action-btn delete-btn"
+                              onClick={() => handleDeleteApplication(appId)}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <p className="no-items">No applications</p>
+                    )}
                   </div>
                 </div>
               )}
@@ -610,6 +784,52 @@ const IntegrationLevel = () => {
                   <button type="button" className="btn btn-secondary" onClick={() => {
                     setShowRequisitionForm(false);
                     setNewRequisition({ title: '' });
+                  }}>
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* 应用表单对话框 */}
+      {showApplicationForm && (
+        <div className="dialog-overlay">
+          <div className="dialog">
+            <div className="dialog-header">
+              <h3>Add Application</h3>
+              <button 
+                className="close-btn"
+                onClick={() => {
+                  setShowApplicationForm(false);
+                  setNewApplication({ title: '' });
+                }}
+              >
+                ×
+              </button>
+            </div>
+            <div className="dialog-content">
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                handleAddApplication();
+              }}>
+                <div className="form-group">
+                  <label>Title *</label>
+                  <input 
+                    type="text" 
+                    value={newApplication.title}
+                    onChange={(e) => setNewApplication({ title: e.target.value })}
+                    required
+                    placeholder="Enter application title"
+                  />
+                </div>
+                <div className="form-actions">
+                  <button type="submit" className="btn btn-primary">Add</button>
+                  <button type="button" className="btn btn-secondary" onClick={() => {
+                    setShowApplicationForm(false);
+                    setNewApplication({ title: '' });
                   }}>
                     Cancel
                   </button>
@@ -871,6 +1091,60 @@ const IntegrationLevel = () => {
         .node-info p {
           margin: 5px 0;
           color: #666;
+        }
+        
+        /* 前置项 */
+        .prerequisites-section {
+          background: white;
+          border-radius: 12px;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+          overflow: hidden;
+        }
+        
+        .prerequisites-list {
+          padding: 20px;
+        }
+        
+        .prerequisites-list .prerequisite-item {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 8px 0;
+          border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .prerequisites-list .prerequisite-item:last-child {
+          border-bottom: none;
+        }
+        
+        /* 应用 */
+        .applications-section {
+          background: white;
+          border-radius: 12px;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+          overflow: hidden;
+        }
+        
+        .applications-list {
+          padding: 20px;
+        }
+        
+        .applications-list .application-item {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 8px 0;
+          border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .applications-list .application-item:last-child {
+          border-bottom: none;
+        }
+        
+        .no-items {
+          color: #999;
+          text-align: center;
+          margin: 20px 0;
         }
         
         /* 外部链接 */
@@ -1224,6 +1498,8 @@ const IntegrationLevel = () => {
           }
           
           .node-info-section,
+          .prerequisites-section,
+          .applications-section,
           .external-links-section {
             flex: 1;
             min-width: 300px;
@@ -1259,6 +1535,8 @@ const IntegrationLevel = () => {
           }
           
           .node-info-section,
+          .prerequisites-section,
+          .applications-section,
           .external-links-section {
             width: 100%;
           }
