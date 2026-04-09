@@ -1157,11 +1157,13 @@ const IntegrationLevel = () => {
         /* ReactFlow 自定义样式 */
         .graph-node {
           border-radius: 8px;
-          padding: 12px;
-          font-size: 14px;
+          padding: 16px 20px;
+          font-size: 16px;
           font-weight: 500;
           text-align: center;
           box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+          min-width: 120px;
+          cursor: pointer;
         }
         
         .graph-node.input {
@@ -1176,7 +1178,22 @@ const IntegrationLevel = () => {
         
         .graph-edge {
           stroke: #667eea;
-          stroke-width: 2;
+          stroke-width: 6;
+          stroke-linecap: round;
+          stroke-linejoin: round;
+        }
+        
+        /* 增加连线的点击区域 */
+        .react-flow__edge-path {
+          stroke: #667eea;
+          stroke-width: 10;
+          stroke-opacity: 0.2;
+          stroke-linecap: round;
+          stroke-linejoin: round;
+        }
+        
+        .react-flow__edge-path:hover {
+          stroke-opacity: 0.4;
         }
         
         @media (max-width: 1200px) {
@@ -1236,8 +1253,30 @@ const IntegrationLevel = () => {
           }
           
           .control-btn {
-            font-size: 12px;
-            padding: 4px 8px;
+            font-size: 14px;
+            padding: 8px 16px;
+            min-width: 80px;
+          }
+          
+          /* 移动端触摸优化 */
+          .graph-node {
+            padding: 20px 24px;
+            min-width: 140px;
+            font-size: 18px;
+          }
+          
+          .react-flow__edge-path {
+            stroke-width: 12;
+          }
+          
+          .node-link-btn {
+            font-size: 16px;
+            padding: 8px 0;
+          }
+          
+          .action-btn {
+            padding: 8px 12px;
+            font-size: 14px;
           }
         }
       `}</style>
