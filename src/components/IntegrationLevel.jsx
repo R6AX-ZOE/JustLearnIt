@@ -12,6 +12,9 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import MDEditor from '@uiw/react-markdown-editor';
 import '@uiw/react-markdown-editor/markdown-editor.css';
+import axios from 'axios';
+
+const API_BASE = '/api/integration';
 
 const IntegrationLevel = () => {
   const [projects, setProjects] = useState([]);
@@ -35,162 +38,150 @@ const IntegrationLevel = () => {
   const [edgeToDelete, setEdgeToDelete] = useState(null);
   const [showMarkdownEditor, setShowMarkdownEditor] = useState(false);
   const [nodeMarkdown, setNodeMarkdown] = useState('');
+  const [showProjectForm, setShowProjectForm] = useState(false);
+  const [newProject, setNewProject] = useState({ name: '', description: '' });
+  const [showGraphForm, setShowGraphForm] = useState(false);
+  const [newGraph, setNewGraph] = useState({ name: '', description: '' });
+  const [showGraphEditForm, setShowGraphEditForm] = useState(false);
+  const [editingGraph, setEditingGraph] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
 
-  // 模拟从后端获取项目数据
+  const [user, setUser] = useState(null);
+
   useEffect(() => {
-    // 这里应该从后端API获取数据
-    // 模拟数据，实际项目中会从服务器获取
-    const mockProjects = [
-      { 
-        id: 1, 
-        name: 'Mathematics Fundamentals', 
-        description: 'Basic math concepts',
-        graphs: [
-          { id: 1, name: 'Basic Concepts', description: 'Fundamental math concepts' },
-          { id: 2, name: 'Advanced Concepts', description: 'Complex mathematical theories' }
-        ]
-      },
-      { 
-        id: 2, 
-        name: 'Physics Principles', 
-        description: 'Fundamental physics laws',
-        graphs: [
-          { id: 1, name: 'Classical Mechanics', description: 'Newtonian physics' },
-          { id: 2, name: 'Quantum Mechanics', description: 'Modern physics' }
-        ]
-      },
-      { 
-        id: 3, 
-        name: 'Computer Science Basics', 
-        description: 'Programming fundamentals',
-        graphs: [
-          { id: 1, name: 'Programming Fundamentals', description: 'Basic programming concepts' },
-          { id: 2, name: 'Data Structures', description: 'Advanced data structures' }
-        ]
-      }
-    ];
-    setProjects(mockProjects);
+    const userData = localStorage.getItem('user');
+    if (userData) {
+      setUser(JSON.parse(userData));
+    }
   }, []);
 
-  // 当选择项目时，生成对应的graph数据
+  const saveGraphToServer = useCallback(async () => {
+    if (!selectedProject || !selectedGraph || isSaving) return;
+    
+    setIsSaving(true);
+    try {
+      await axios.put(`${API_BASE}/project/${selectedProject.id}/graph/${selectedGraph.id}`, {
+        nodes,
+        edges
+      });
+    } catch (error) {
+      console.error('Error saving graph:', error);
+    } finally {
+      setIsSaving(false);
+    }
+  }, [selectedProject, selectedGraph, nodes, edges, isSaving]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      saveGraphToServer();
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [nodes, edges, saveGraphToServer]);
+
+  useEffect(() => {
+    if (user) {
+      loadProjects();
+    }
+  }, [user]);
+
+  const loadProjects = async () => {
+    if (!user) return;
+    try {
+      const response = await axios.get(`${API_BASE}/projects/${user.id}`);
+      setProjects(response.data.projects);
+    } catch (error) {
+      console.error('Error loading projects:', error);
+    }
+  };
+
+  const handleCreateProject = async () => {
+    if (!user || !newProject.name) return;
+    try {
+      const response = await axios.post(`${API_BASE}/projects`, {
+        name: newProject.name,
+        description: newProject.description,
+        userId: user.id
+      });
+      setProjects([...projects, response.data.project]);
+      setNewProject({ name: '', description: '' });
+      setShowProjectForm(false);
+    } catch (error) {
+      console.error('Error creating project:', error);
+    }
+  };
+
+  const handleCreateGraph = async () => {
+    if (!selectedProject || !newGraph.name) return;
+    try {
+      const updatedProject = {
+        ...selectedProject,
+        graphs: [
+          ...(selectedProject.graphs || []),
+          {
+            id: Date.now().toString(),
+            name: newGraph.name,
+            description: newGraph.description,
+            nodes: [],
+            edges: []
+          }
+        ],
+        updatedAt: new Date()
+      };
+
+      const response = await axios.put(`${API_BASE}/project/${selectedProject.id}`, {
+        graphs: updatedProject.graphs
+      });
+
+      setProjects(projects.map(project => 
+        project.id === selectedProject.id ? response.data.project : project
+      ));
+      setNewGraph({ name: '', description: '' });
+      setShowGraphForm(false);
+    } catch (error) {
+      console.error('Error creating graph:', error);
+    }
+  };
+
+  const handleEditGraph = (graph) => {
+    setEditingGraph(graph);
+    setNewGraph({ name: graph.name, description: graph.description });
+    setShowGraphEditForm(true);
+  };
+
+  const handleUpdateGraph = async () => {
+    if (!selectedProject || !editingGraph || !newGraph.name) return;
+    try {
+      const updatedGraphs = selectedProject.graphs.map(graph => 
+        graph.id === editingGraph.id 
+          ? { ...graph, name: newGraph.name, description: newGraph.description }
+          : graph
+      );
+
+      const response = await axios.put(`${API_BASE}/project/${selectedProject.id}`, {
+        graphs: updatedGraphs
+      });
+
+      setProjects(projects.map(project => 
+        project.id === selectedProject.id ? response.data.project : project
+      ));
+      setEditingGraph(null);
+      setNewGraph({ name: '', description: '' });
+      setShowGraphEditForm(false);
+    } catch (error) {
+      console.error('Error updating graph:', error);
+    }
+  };
+
   useEffect(() => {
     if (selectedProject && selectedGraph) {
-      // 模拟生成graph数据
-      const mockNodes = [
-        {
-          id: '1',
-          position: { x: 100, y: 100 },
-          data: { 
-            label: 'Concept 1', 
-            type: 'input',
-            prerequisites: [],
-            applications: ['4']
-          },
-          className: 'graph-node input'
-        },
-        {
-          id: '2',
-          position: { x: 300, y: 100 },
-          data: { 
-            label: 'Concept 2', 
-            type: 'input',
-            prerequisites: [],
-            applications: ['4']
-          },
-          className: 'graph-node input'
-        },
-        {
-          id: '3',
-          position: { x: 500, y: 100 },
-          data: { 
-            label: 'Concept 3', 
-            type: 'input',
-            prerequisites: [],
-            applications: ['4']
-          },
-          className: 'graph-node input'
-        },
-        {
-          id: '4',
-          position: { x: 300, y: 200 },
-          data: { 
-            label: 'Relationship 1', 
-            type: 'connection',
-            prerequisites: ['1', '2', '3'],
-            applications: ['5', '6']
-          },
-          className: 'graph-node connection'
-        },
-        {
-          id: '5',
-          position: { x: 300, y: 300 },
-          data: { 
-            label: 'Concept 4', 
-            type: 'input',
-            prerequisites: ['4'],
-            applications: []
-          },
-          className: 'graph-node input'
-        },
-        {
-          id: '6',
-          position: { x: 500, y: 300 },
-          data: { 
-            label: 'Concept 5', 
-            type: 'input',
-            prerequisites: ['4'],
-            applications: []
-          },
-          className: 'graph-node input'
-        }
-      ];
-      
-      const mockEdges = [
-        {
-          id: 'e1-4',
-          source: '1',
-          target: '4',
-          className: 'graph-edge'
-        },
-        {
-          id: 'e2-4',
-          source: '2',
-          target: '4',
-          className: 'graph-edge'
-        },
-        {
-          id: 'e4-5',
-          source: '4',
-          target: '5',
-          className: 'graph-edge'
-        },
-        {
-          id: 'e3-6',
-          source: '3',
-          target: '6',
-          className: 'graph-edge'
-        },
-        {
-          id: 'e5-6',
-          source: '5',
-          target: '6',
-          className: 'graph-edge'
-        }
-      ];
-      
-      const mockExternalLinks = [
-        { id: 1, title: 'Link to Concept 3', targetNodeId: '3', nodeIds: ['1', '2'] },
-        { id: 2, title: 'Link to Concept 5', targetNodeId: '5', nodeIds: ['3'] },
-        { id: 3, title: 'Link to Concept 1', targetNodeId: '1', nodeIds: ['4', '5', '6'] }
-      ];
-      
-      setNodes(mockNodes);
-      setEdges(mockEdges);
-      setExternalLinks(mockExternalLinks);
+      const graphData = selectedProject.graphs?.find(g => g.id === selectedGraph.id);
+      if (graphData) {
+        setNodes(graphData.nodes || []);
+        setEdges(graphData.edges || []);
+      }
     }
-  }, [selectedProject]);
+  }, [selectedProject, selectedGraph, setNodes, setEdges]);
 
-  // 处理边的添加
   const onConnect = useCallback((params) => {
     setEdges((eds) => addEdge({
       ...params,
@@ -198,27 +189,24 @@ const IntegrationLevel = () => {
     }, eds));
   }, []);
 
-  // 删除边
   const handleDeleteEdge = (edgeId) => {
     setEdges(edges.filter(edge => edge.id !== edgeId));
   };
 
-  // 处理边的双击
   const handleEdgeDoubleClick = (event, edge) => {
-    // 显示自定义删除确认对话框
     setEdgeToDelete(edge);
     setShowDeleteConfirm(true);
   };
 
   const handleProjectSelect = (project) => {
     setSelectedProject(project);
+    setSelectedGraph(null);
+    setSelectedNode(null);
   };
 
   const handleNodeClick = (event, node) => {
-    // 处理节点点击，实现graph导航
     setSelectedNode(node);
     console.log('Node clicked:', node);
-    // 更新节点的选中状态
     const updatedNodes = nodes.map(n => ({
       ...n,
       className: `graph-node ${n.data.type || 'input'} ${n.id === node.id ? 'selected' : ''}`
@@ -226,13 +214,17 @@ const IntegrationLevel = () => {
     setNodes(updatedNodes);
   };
 
-  // 添加节点
   const handleAddNode = () => {
-    const newId = (nodes.length + 1).toString();
+    const newId = Date.now().toString();
     const newNodeObj = {
       id: newId,
       position: { x: 100, y: 100 },
-      data: { label: newNode.title, type: newNode.type },
+      data: { 
+        label: newNode.title, 
+        type: newNode.type,
+        prerequisites: [],
+        applications: []
+      },
       className: `graph-node ${newNode.type}`
     };
     setNodes([...nodes, newNodeObj]);
@@ -240,14 +232,12 @@ const IntegrationLevel = () => {
     setShowNodeForm(false);
   };
 
-  // 编辑节点
   const handleEditNode = (node) => {
     setEditingNode(node);
     setNewNode({ title: node.data.label, type: node.data.type });
     setShowNodeForm(true);
   };
 
-  // 更新节点
   const handleUpdateNode = () => {
     if (editingNode) {
       const updatedNodes = nodes.map(node => 
@@ -269,13 +259,9 @@ const IntegrationLevel = () => {
     }
   };
 
-  // 删除节点
   const handleDeleteNode = (nodeId) => {
-    // 删除节点
     const updatedNodes = nodes.filter(node => node.id !== nodeId);
-    // 删除与该节点相关的边
     const updatedEdges = edges.filter(edge => edge.source !== nodeId && edge.target !== nodeId);
-    // 更新外部链接
     const updatedLinks = externalLinks.map(link => ({
       ...link,
       nodeIds: link.nodeIds.filter(id => id !== nodeId)
@@ -289,10 +275,9 @@ const IntegrationLevel = () => {
     }
   };
 
-  // 添加外部链接
   const handleAddLink = () => {
     const newLinkObj = {
-      id: externalLinks.length + 1,
+      id: Date.now().toString(),
       title: newLink.title,
       targetNodeId: newLink.targetNodeId,
       nodeIds: newLink.nodeIds
@@ -302,14 +287,12 @@ const IntegrationLevel = () => {
     setShowLinkForm(false);
   };
 
-  // 编辑外部链接
   const handleEditLink = (link) => {
     setEditingLink(link);
     setNewLink({ title: link.title, targetNodeId: link.targetNodeId, nodeIds: [...link.nodeIds] });
     setShowLinkForm(true);
   };
 
-  // 更新外部链接
   const handleUpdateLink = () => {
     if (editingLink) {
       const updatedLinks = externalLinks.map(link => 
@@ -324,23 +307,19 @@ const IntegrationLevel = () => {
     }
   };
 
-  // 删除外部链接
   const handleDeleteLink = (linkId) => {
     setExternalLinks(externalLinks.filter(link => link.id !== linkId));
   };
 
-  // 添加前置项
   const handleAddRequisition = () => {
     if (selectedNode) {
       const targetNodeId = newRequisition.title;
-      // 找到目标节点
       const targetNode = nodes.find(n => n.id === targetNodeId);
       if (!targetNode) {
         alert('Target node not found');
         return;
       }
       
-      // 更新当前节点的前置项
       const updatedNodes = nodes.map(node => {
         if (node.id === selectedNode.id) {
           return {
@@ -351,7 +330,6 @@ const IntegrationLevel = () => {
             }
           };
         } else if (node.id === targetNodeId) {
-          // 同时更新目标节点的应用
           return {
             ...node,
             data: {
@@ -369,13 +347,10 @@ const IntegrationLevel = () => {
     }
   };
 
-  // 删除前置项
   const handleDeleteRequisition = (requisitionId) => {
     if (selectedNode) {
-      // 找到目标节点
       const targetNode = nodes.find(n => n.id === requisitionId);
       
-      // 更新当前节点的前置项
       const updatedNodes = nodes.map(node => {
         if (node.id === selectedNode.id) {
           return {
@@ -386,7 +361,6 @@ const IntegrationLevel = () => {
             }
           };
         } else if (targetNode && node.id === requisitionId) {
-          // 同时更新目标节点的应用
           return {
             ...node,
             data: {
@@ -402,18 +376,15 @@ const IntegrationLevel = () => {
     }
   };
 
-  // 添加应用
   const handleAddApplication = () => {
     if (selectedNode) {
       const targetNodeId = newApplication.title;
-      // 找到目标节点
       const targetNode = nodes.find(n => n.id === targetNodeId);
       if (!targetNode) {
         alert('Target node not found');
         return;
       }
       
-      // 更新当前节点的应用
       const updatedNodes = nodes.map(node => {
         if (node.id === selectedNode.id) {
           return {
@@ -424,7 +395,6 @@ const IntegrationLevel = () => {
             }
           };
         } else if (node.id === targetNodeId) {
-          // 同时更新目标节点的前置项
           return {
             ...node,
             data: {
@@ -442,13 +412,10 @@ const IntegrationLevel = () => {
     }
   };
 
-  // 删除应用
   const handleDeleteApplication = (applicationId) => {
     if (selectedNode) {
-      // 找到目标节点
       const targetNode = nodes.find(n => n.id === applicationId);
       
-      // 更新当前节点的应用
       const updatedNodes = nodes.map(node => {
         if (node.id === selectedNode.id) {
           return {
@@ -459,7 +426,6 @@ const IntegrationLevel = () => {
             }
           };
         } else if (targetNode && node.id === applicationId) {
-          // 同时更新目标节点的前置项
           return {
             ...node,
             data: {
@@ -475,7 +441,6 @@ const IntegrationLevel = () => {
     }
   };
 
-  // 过滤显示的外部链接（只显示焦点节点的链接）
   const filteredExternalLinks = selectedNode 
     ? externalLinks.filter(link => link.nodeIds.includes(selectedNode.id))
     : [];
@@ -489,10 +454,17 @@ const IntegrationLevel = () => {
             <Link to="/" className="nav-link">Home</Link>
             <Link to="/input" className="nav-link">Input Level</Link>
           </div>
+          <div className="user-status">
+            {user ? `Logged in as: ${user.username}` : 'Not logged in'}
+          </div>
+        </div>
+        <div className="header-right">
+          <button className="control-btn" onClick={() => setShowProjectForm(true)}>
+            New Project
+          </button>
         </div>
       </div>
       
-      {/* 项目选择 */}
       <div className="project-selection">
         <h3>Select Project</h3>
         <div className="projects-list">
@@ -509,16 +481,24 @@ const IntegrationLevel = () => {
         </div>
       </div>
       
-      {/* 图选择 */}
       {selectedProject && (
         <div className="graph-selection">
-          <h3>Select Graph (Debug: {selectedProject.graphs?.length || 0} graphs)</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+            <h3>Select Graph ({selectedProject.graphs?.length || 0} graphs)</h3>
+            <button className="control-btn" onClick={() => setShowGraphForm(true)}>
+              New Graph
+            </button>
+          </div>
           <div className="graphs-list">
             {selectedProject.graphs?.map(graph => (
               <div 
                 key={graph.id}
                 className={`graph-item ${selectedGraph?.id === graph.id ? 'selected' : ''}`}
                 onClick={() => setSelectedGraph(graph)}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  handleEditGraph(graph);
+                }}
               >
                 <h4>{graph.name}</h4>
                 <p>{graph.description}</p>
@@ -531,10 +511,9 @@ const IntegrationLevel = () => {
       {selectedProject && selectedGraph && (
         <div className="integration-content">
           <div className="main-content">
-            {/* 左侧Graph区域 */}
             <div className="graph-section">
               <div className="graph-header">
-                <h3>Graph</h3>
+                <h3>Graph {isSaving && <span>(Saving...)</span>}</h3>
                 <div className="graph-controls">
                   <button className="control-btn" onClick={() => setShowNodeForm(true)}>Add Node</button>
                   {selectedNode && (
@@ -565,7 +544,6 @@ const IntegrationLevel = () => {
                 </ReactFlow>
               </div>
               
-              {/* 外部链接管理 */}
               <div className="external-links-section">
                 <div className="section-header">
                   <h3>External Links</h3>
@@ -580,12 +558,9 @@ const IntegrationLevel = () => {
                             <button 
                               className="node-link-btn"
                               onClick={() => {
-                                // 查找目标节点
                                 const targetNode = nodes.find(node => node.id === link.targetNodeId);
                                 if (targetNode) {
-                                  // 这里可以实现跳转到目标节点的逻辑
                                   alert(`Link to: ${targetNode.data.label}`);
-                                  // 实际项目中可以实现节点定位或高亮
                                 }
                               }}
                             >
@@ -608,9 +583,7 @@ const IntegrationLevel = () => {
               </div>
             </div>
             
-            {/* 右侧管理区域 */}
             <div className="management-section">
-              {/* 前置项管理 */}
               {selectedNode && (
                 <div className="prerequisites-section">
                   <div className="section-header">
@@ -645,7 +618,6 @@ const IntegrationLevel = () => {
                 </div>
               )}
               
-              {/* 焦点节点信息 */}
               {selectedNode && (
                 <div className="node-info-section">
                   <div className="section-header">
@@ -677,7 +649,6 @@ const IntegrationLevel = () => {
                 </div>
               )}
               
-              {/* 应用管理 */}
               {selectedNode && (
                 <div className="applications-section">
                   <div className="section-header">
@@ -716,7 +687,167 @@ const IntegrationLevel = () => {
         </div>
       )}
       
-      {/* 节点表单对话框 */}
+      {showProjectForm && (
+        <div className="dialog-overlay">
+          <div className="dialog">
+            <div className="dialog-header">
+              <h3>New Project</h3>
+              <button 
+                className="close-btn"
+                onClick={() => {
+                  setShowProjectForm(false);
+                  setNewProject({ name: '', description: '' });
+                }}
+              >
+                ×
+              </button>
+            </div>
+            <div className="dialog-content">
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                handleCreateProject();
+              }}>
+                <div className="form-group">
+                  <label>Name *</label>
+                  <input 
+                    type="text" 
+                    value={newProject.name}
+                    onChange={(e) => setNewProject({ ...newProject, name: e.target.value })}
+                    required
+                    placeholder="Project name"
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Description</label>
+                  <textarea 
+                    value={newProject.description}
+                    onChange={(e) => setNewProject({ ...newProject, description: e.target.value })}
+                    placeholder="Project description"
+                  />
+                </div>
+                <div className="form-actions">
+                  <button type="submit" className="btn btn-primary">Create</button>
+                  <button type="button" className="btn btn-secondary" onClick={() => {
+                    setShowProjectForm(false);
+                    setNewProject({ name: '', description: '' });
+                  }}>
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showGraphForm && (
+        <div className="dialog-overlay">
+          <div className="dialog">
+            <div className="dialog-header">
+              <h3>New Graph</h3>
+              <button 
+                className="close-btn"
+                onClick={() => {
+                  setShowGraphForm(false);
+                  setNewGraph({ name: '', description: '' });
+                }}
+              >
+                ×
+              </button>
+            </div>
+            <div className="dialog-content">
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                handleCreateGraph();
+              }}>
+                <div className="form-group">
+                  <label>Name *</label>
+                  <input 
+                    type="text" 
+                    value={newGraph.name}
+                    onChange={(e) => setNewGraph({ ...newGraph, name: e.target.value })}
+                    required
+                    placeholder="Graph name"
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Description</label>
+                  <textarea 
+                    value={newGraph.description}
+                    onChange={(e) => setNewGraph({ ...newGraph, description: e.target.value })}
+                    placeholder="Graph description"
+                  />
+                </div>
+                <div className="form-actions">
+                  <button type="submit" className="btn btn-primary">Create</button>
+                  <button type="button" className="btn btn-secondary" onClick={() => {
+                    setShowGraphForm(false);
+                    setNewGraph({ name: '', description: '' });
+                  }}>
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showGraphEditForm && (
+        <div className="dialog-overlay">
+          <div className="dialog">
+            <div className="dialog-header">
+              <h3>Edit Graph</h3>
+              <button 
+                className="close-btn"
+                onClick={() => {
+                  setShowGraphEditForm(false);
+                  setEditingGraph(null);
+                  setNewGraph({ name: '', description: '' });
+                }}
+              >
+                ×
+              </button>
+            </div>
+            <div className="dialog-content">
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                handleUpdateGraph();
+              }}>
+                <div className="form-group">
+                  <label>Name *</label>
+                  <input 
+                    type="text" 
+                    value={newGraph.name}
+                    onChange={(e) => setNewGraph({ ...newGraph, name: e.target.value })}
+                    required
+                    placeholder="Graph name"
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Description</label>
+                  <textarea 
+                    value={newGraph.description}
+                    onChange={(e) => setNewGraph({ ...newGraph, description: e.target.value })}
+                    placeholder="Graph description"
+                  />
+                </div>
+                <div className="form-actions">
+                  <button type="submit" className="btn btn-primary">Update</button>
+                  <button type="button" className="btn btn-secondary" onClick={() => {
+                    setShowGraphEditForm(false);
+                    setEditingGraph(null);
+                    setNewGraph({ name: '', description: '' });
+                  }}>
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+      
       {showNodeForm && (
         <div className="dialog-overlay">
           <div className="dialog">
@@ -774,7 +905,6 @@ const IntegrationLevel = () => {
         </div>
       )}
       
-      {/* 外部链接表单对话框 */}
       {showLinkForm && (
         <div className="dialog-overlay">
           <div className="dialog">
@@ -855,7 +985,6 @@ const IntegrationLevel = () => {
         </div>
       )}
       
-      {/* 前置项表单对话框 */}
       {showRequisitionForm && (
         <div className="dialog-overlay">
           <div className="dialog">
@@ -904,7 +1033,6 @@ const IntegrationLevel = () => {
         </div>
       )}
       
-      {/* 应用表单对话框 */}
       {showApplicationForm && (
         <div className="dialog-overlay">
           <div className="dialog">
@@ -953,7 +1081,6 @@ const IntegrationLevel = () => {
         </div>
       )}
       
-      {/* Markdown编辑器对话框 */}
       {showMarkdownEditor && selectedNode && (
         <div className="dialog-overlay">
           <div className="dialog markdown-dialog">
@@ -979,7 +1106,6 @@ const IntegrationLevel = () => {
                 <button 
                   className="btn btn-primary"
                   onClick={() => {
-                    // 更新节点的描述
                     const updatedNodes = nodes.map(node => 
                       node.id === selectedNode.id 
                         ? { 
@@ -1013,7 +1139,6 @@ const IntegrationLevel = () => {
         </div>
       )}
       
-      {/* 删除确认对话框 */}
       {showDeleteConfirm && (
         <div className="dialog-overlay">
           <div className="dialog">
@@ -1104,7 +1229,6 @@ const IntegrationLevel = () => {
           transform: translateY(-1px);
         }
         
-        /* 项目选择 */
         .project-selection {
           margin-bottom: 30px;
         }
@@ -1195,16 +1319,12 @@ const IntegrationLevel = () => {
           font-size: 14px;
         }
         
-
-        
-        /* 主内容区域 */
         .main-content {
           display: flex;
           gap: 20px;
           min-height: 600px;
         }
         
-        /* Graph区域 */
         .graph-section {
           flex: 1;
           background: white;
@@ -1260,7 +1380,6 @@ const IntegrationLevel = () => {
           height: 500px;
         }
         
-        /* 管理区域 */
         .management-section {
           width: 350px;
           display: flex;
@@ -1268,79 +1387,9 @@ const IntegrationLevel = () => {
           gap: 20px;
         }
         
-        /* 节点信息 */
-        .node-info-section {
-          background: white;
-          border-radius: 12px;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-          padding: 20px;
-        }
-        
-        .node-info-section h3 {
-          margin: 0 0 15px 0;
-          color: #333;
-        }
-        
-        .node-info p {
-          margin: 5px 0;
-          color: #666;
-        }
-        
-        /* 前置项 */
-        .prerequisites-section {
-          background: white;
-          border-radius: 12px;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-          overflow: hidden;
-        }
-        
-        .prerequisites-list {
-          padding: 20px;
-        }
-        
-        .prerequisites-list .prerequisite-item {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 8px 0;
-          border-bottom: 1px solid #f0f0f0;
-        }
-        
-        .prerequisites-list .prerequisite-item:last-child {
-          border-bottom: none;
-        }
-        
-        /* 应用 */
-        .applications-section {
-          background: white;
-          border-radius: 12px;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-          overflow: hidden;
-        }
-        
-        .applications-list {
-          padding: 20px;
-        }
-        
-        .applications-list .application-item {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 8px 0;
-          border-bottom: 1px solid #f0f0f0;
-        }
-        
-        .applications-list .application-item:last-child {
-          border-bottom: none;
-        }
-        
-        .no-items {
-          color: #999;
-          text-align: center;
-          margin: 20px 0;
-        }
-        
-        /* 外部链接 */
+        .node-info-section,
+        .prerequisites-section,
+        .applications-section,
         .external-links-section {
           background: white;
           border-radius: 12px;
@@ -1362,77 +1411,65 @@ const IntegrationLevel = () => {
           color: #333;
         }
         
-        .add-btn {
-          padding: 6px 12px;
-          background: #e8f5e8;
-          border: 1px solid #4caf50;
-          border-radius: 4px;
-          color: #2e7d32;
-          cursor: pointer;
-          font-size: 14px;
-          transition: all 0.2s ease;
-        }
-        
-        .add-btn:hover {
-          background: #c8e6c9;
-        }
-        
+        .node-info,
+        .prerequisites-list,
+        .applications-list,
         .external-links-container {
           padding: 20px;
         }
         
+        .node-info p {
+          margin: 5px 0;
+          color: #666;
+        }
+        
+        .node-description {
+          margin-top: 15px;
+        }
+        
+        .node-description p {
+          margin: 0 0 10px 0;
+        }
+        
+        .description-content {
+          background: #fafafa;
+          padding: 15px;
+          border-radius: 8px;
+        }
+        
+        .no-description {
+          color: #999;
+          font-style: italic;
+        }
+        
+        .prerequisite-item,
+        .application-item,
         .external-link-item {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          margin-bottom: 10px;
-          padding: 10px;
-          background: #f8f9fa;
-          border-radius: 6px;
-          transition: all 0.2s ease;
+          padding: 8px 0;
+          border-bottom: 1px solid #f0f0f0;
         }
         
-        .external-link-item:hover {
-          background: #e3f2fd;
-        }
-        
-        .link-content a {
-          text-decoration: none;
-          color: #667eea;
-          font-weight: 500;
-          transition: color 0.2s ease;
-        }
-        
-        .link-content a:hover {
-          color: #764ba2;
-          text-decoration: underline;
-        }
-        
-        .link-content span {
-          color: #666;
-          font-weight: 500;
+        .prerequisite-item:last-child,
+        .application-item:last-child,
+        .external-link-item:last-child {
+          border-bottom: none;
         }
         
         .node-link-btn {
           background: none;
           border: none;
           color: #667eea;
-          font-weight: 500;
-          text-align: left;
           cursor: pointer;
+          text-decoration: underline;
           padding: 0;
-          font-size: 14px;
-          transition: color 0.2s ease;
+          font-size: inherit;
         }
         
         .node-link-btn:hover {
-          color: #764ba2;
-          text-decoration: underline;
-        }
-        
-        .link-actions {
-          display: flex;
-          gap: 5px;
+          color: #5a67d8;
         }
         
         .action-btn {
@@ -1442,11 +1479,7 @@ const IntegrationLevel = () => {
           border-radius: 4px;
           cursor: pointer;
           font-size: 12px;
-          transition: all 0.2s ease;
-        }
-        
-        .action-btn:hover {
-          background: #f0f0f0;
+          margin-left: 8px;
         }
         
         .action-btn.delete-btn {
@@ -1455,17 +1488,27 @@ const IntegrationLevel = () => {
           color: #c62828;
         }
         
-        .action-btn.delete-btn:hover {
-          background: #ffcdd2;
-        }
-        
+        .no-items,
         .no-links {
           color: #999;
           text-align: center;
-          margin: 20px 0;
+          margin: 0;
         }
         
-        /* 对话框样式 */
+        .add-btn {
+          padding: 6px 12px;
+          border: none;
+          background: #667eea;
+          color: white;
+          border-radius: 4px;
+          cursor: pointer;
+          font-size: 14px;
+        }
+        
+        .add-btn:hover {
+          background: #5a67d8;
+        }
+        
         .dialog-overlay {
           position: fixed;
           top: 0;
@@ -1482,18 +1525,22 @@ const IntegrationLevel = () => {
         .dialog {
           background: white;
           border-radius: 12px;
-          box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-          width: 90%;
-          max-width: 500px;
-          max-height: 80vh;
-          overflow-y: auto;
+          padding: 0;
+          min-width: 400px;
+          max-width: 90vw;
+          max-height: 90vh;
+          overflow: auto;
+        }
+        
+        .dialog.markdown-dialog {
+          width: 600px;
         }
         
         .dialog-header {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          padding: 20px;
+          padding: 15px 20px;
           border-bottom: 1px solid #e0e0e0;
         }
         
@@ -1505,55 +1552,18 @@ const IntegrationLevel = () => {
         .close-btn {
           background: none;
           border: none;
-          font-size: 24px;
+          font-size: 28px;
           cursor: pointer;
-          color: #999;
-          padding: 0;
-          width: 30px;
-          height: 30px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          border-radius: 50%;
-          transition: all 0.2s ease;
+          color: #666;
+          line-height: 1;
         }
         
         .close-btn:hover {
-          background: #f0f0f0;
           color: #333;
         }
         
         .dialog-content {
           padding: 20px;
-        }
-        
-        /* Markdown编辑器对话框 */
-        .markdown-dialog {
-          width: 90%;
-          max-width: 800px;
-          max-height: 90vh;
-          overflow-y: auto;
-        }
-        
-        .markdown-dialog .dialog-content {
-          padding: 10px;
-        }
-        
-        .node-description {
-          margin-top: 15px;
-        }
-        
-        .description-content {
-          margin-top: 10px;
-          padding: 15px;
-          background: #f9f9f9;
-          border-radius: 8px;
-          border: 1px solid #e0e0e0;
-        }
-        
-        .no-description {
-          color: #999;
-          font-style: italic;
         }
         
         .form-group {
@@ -1575,47 +1585,31 @@ const IntegrationLevel = () => {
           border: 1px solid #ddd;
           border-radius: 6px;
           font-size: 14px;
-          transition: border-color 0.2s ease;
         }
         
-        .form-group input:focus,
-        .form-group select:focus,
-        .form-group textarea:focus {
-          outline: none;
-          border-color: #667eea;
-          box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
+        .form-group textarea {
+          resize: vertical;
+          min-height: 100px;
         }
         
         .node-selector {
           display: flex;
-          flex-direction: column;
-          gap: 8px;
-          max-height: 200px;
-          overflow-y: auto;
-          border: 1px solid #ddd;
-          border-radius: 6px;
-          padding: 10px;
+          flex-wrap: wrap;
+          gap: 10px;
         }
         
         .node-checkbox {
           display: flex;
           align-items: center;
-          gap: 8px;
+          gap: 5px;
           cursor: pointer;
-          padding: 5px;
-          border-radius: 4px;
-          transition: background 0.2s ease;
-        }
-        
-        .node-checkbox:hover {
-          background: #f8f9fa;
         }
         
         .form-actions {
           display: flex;
           gap: 10px;
           justify-content: flex-end;
-          margin-top: 30px;
+          margin-top: 20px;
         }
         
         .btn {
@@ -1625,23 +1619,20 @@ const IntegrationLevel = () => {
           cursor: pointer;
           font-size: 14px;
           font-weight: 500;
-          transition: all 0.2s ease;
         }
         
         .btn-primary {
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          background: #667eea;
           color: white;
         }
         
         .btn-primary:hover {
-          transform: translateY(-1px);
-          box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+          background: #5a67d8;
         }
         
         .btn-secondary {
           background: #f0f0f0;
-          color: #666;
-          border: 1px solid #ddd;
+          color: #333;
         }
         
         .btn-secondary:hover {
@@ -1649,43 +1640,35 @@ const IntegrationLevel = () => {
         }
         
         .btn-danger {
-          background: #ffebee;
-          color: #c62828;
-          border: 1px solid #f44336;
+          background: #f44336;
+          color: white;
         }
         
         .btn-danger:hover {
-          background: #ffcdd2;
-          box-shadow: 0 4px 12px rgba(244, 67, 54, 0.4);
+          background: #d32f2f;
         }
         
-        /* ReactFlow 自定义样式 */
         .graph-node {
           border-radius: 8px;
-          padding: 16px 20px;
-          font-size: 16px;
+          padding: 10px 15px;
+          font-size: 14px;
           font-weight: 500;
-          text-align: center;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-          min-width: 120px;
-          cursor: pointer;
+          box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+          cursor: grab;
+        }
+        
+        .graph-node.selected {
+          box-shadow: 0 0 0 3px #667eea, 0 2px 8px rgba(102, 126, 234, 0.4);
         }
         
         .graph-node.input {
-          background: #e8f5e8;
-          border: 2px solid #4caf50;
+          background: #e3f2fd;
+          border: 2px solid #2196f3;
         }
         
         .graph-node.connection {
           background: #fff3e0;
           border: 2px solid #ff9800;
-        }
-        
-        .graph-node.selected {
-          border: 3px solid #667eea;
-          box-shadow: 0 0 15px rgba(102, 126, 234, 0.5);
-          transform: scale(1.05);
-          transition: all 0.2s ease;
         }
         
         .graph-edge {
@@ -1695,7 +1678,6 @@ const IntegrationLevel = () => {
           stroke-linejoin: round;
         }
         
-        /* 增加连线的点击区域 */
         .react-flow__edge-path {
           stroke: #667eea;
           stroke-width: 10;
@@ -1739,83 +1721,15 @@ const IntegrationLevel = () => {
             gap: 15px;
           }
           
-          .navigation-links {
-            width: 100%;
-            justify-content: space-between;
-          }
-          
-          .projects-list {
+          .projects-list,
+          .graphs-list {
             flex-direction: column;
           }
           
-          .project-item {
-            flex: 1 1 100%;
-          }
-          
-          .management-section {
-            flex-direction: column;
-          }
-          
-          .node-info-section,
-          .prerequisites-section,
-          .applications-section,
-          .external-links-section {
+          .project-item,
+          .graph-item {
+            flex: none;
             width: 100%;
-          }
-          
-          .graph-controls {
-            flex-wrap: wrap;
-            justify-content: flex-end;
-          }
-          
-          .control-btn {
-            font-size: 14px;
-            padding: 8px 16px;
-            min-width: 80px;
-          }
-          
-          /* 移动端触摸优化 */
-          .graph-node {
-            padding: 20px 24px;
-            min-width: 140px;
-            font-size: 18px;
-          }
-          
-          .react-flow__edge-path {
-            stroke-width: 12;
-          }
-          
-          .node-link-btn {
-            font-size: 16px;
-            padding: 8px 0;
-          }
-          
-          .action-btn {
-            padding: 8px 12px;
-            font-size: 14px;
-          }
-          
-          /* 移动端markdown编辑器 */
-          .markdown-dialog {
-            width: 95%;
-            max-height: 95vh;
-          }
-          
-          .markdown-dialog .dialog-content {
-            padding: 5px;
-          }
-          
-          .MDEditor {
-            font-size: 14px;
-          }
-          
-          .MDEditor-toolbar {
-            flex-wrap: wrap;
-          }
-          
-          .MDEditor-toolbar button {
-            padding: 6px;
-            font-size: 12px;
           }
         }
       `}</style>

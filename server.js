@@ -6,6 +6,7 @@ import fs from 'fs';
 import path from 'path';
 import learningRoutes from './routes/learning.js';
 import uploadRoutes from './routes/upload.js';
+import integrationRoutes from './routes/integration.js';
 
 const app = express();
 const PORT = process.env.PORT || 3002;
@@ -54,6 +55,9 @@ const users = loadUsers();
 
 // 学习项目路由
 app.use('/api/learning', learningRoutes);
+
+// Integration层级路由
+app.use('/api/integration', integrationRoutes);
 
 // 图片上传路由
 app.use('/api/upload', uploadRoutes);
