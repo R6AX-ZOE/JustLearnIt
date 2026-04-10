@@ -512,7 +512,7 @@ const IntegrationLevel = () => {
       {/* 图选择 */}
       {selectedProject && (
         <div className="graph-selection">
-          <h3>Select Graph</h3>
+          <h3>Select Graph (Debug: {selectedProject.graphs?.length || 0} graphs)</h3>
           <div className="graphs-list">
             {selectedProject.graphs?.map(graph => (
               <div 
