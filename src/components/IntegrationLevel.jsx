@@ -530,41 +530,6 @@ const IntegrationLevel = () => {
       
       {selectedProject && selectedGraph && (
         <div className="integration-content">
-          {/* 前置项管理 */}
-          {selectedNode && (
-            <div className="prerequisites-section">
-              <div className="section-header">
-                <h3>Prerequisites</h3>
-                <button 
-                  className="control-btn"
-                  onClick={() => setShowRequisitionForm(true)}
-                >
-                  Add
-                </button>
-              </div>
-              <div className="prerequisites-list">
-                {selectedNode?.data?.prerequisites?.length > 0 ? (
-                  selectedNode.data.prerequisites.map((prereqId, index) => {
-                    const prereqNode = nodes.find(n => n.id === prereqId);
-                    return (
-                      <div key={index} className="prerequisite-item">
-                        <span>{prereqNode?.data?.label || `Node ${prereqId}`}</span>
-                        <button 
-                          className="action-btn delete-btn"
-                          onClick={() => handleDeleteRequisition(prereqId)}
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    );
-                  })
-                ) : (
-                  <p className="no-items">No prerequisites</p>
-                )}
-              </div>
-            </div>
-          )}
-          
           <div className="main-content">
             {/* 左侧Graph区域 */}
             <div className="graph-section">
@@ -645,6 +610,41 @@ const IntegrationLevel = () => {
             
             {/* 右侧管理区域 */}
             <div className="management-section">
+              {/* 前置项管理 */}
+              {selectedNode && (
+                <div className="prerequisites-section">
+                  <div className="section-header">
+                    <h3>Prerequisites</h3>
+                    <button 
+                      className="control-btn"
+                      onClick={() => setShowRequisitionForm(true)}
+                    >
+                      Add
+                    </button>
+                  </div>
+                  <div className="prerequisites-list">
+                    {selectedNode?.data?.prerequisites?.length > 0 ? (
+                      selectedNode.data.prerequisites.map((prereqId, index) => {
+                        const prereqNode = nodes.find(n => n.id === prereqId);
+                        return (
+                          <div key={index} className="prerequisite-item">
+                            <span>{prereqNode?.data?.label || `Node ${prereqId}`}</span>
+                            <button 
+                              className="action-btn delete-btn"
+                              onClick={() => handleDeleteRequisition(prereqId)}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <p className="no-items">No prerequisites</p>
+                    )}
+                  </div>
+                </div>
+              )}
+              
               {/* 焦点节点信息 */}
               {selectedNode && (
                 <div className="node-info-section">
