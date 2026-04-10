@@ -17,7 +17,6 @@ const IntegrationLevel = () => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [externalLinks, setExternalLinks] = useState([]);
-  const [requisitions, setRequisitions] = useState([]);
   const [selectedNode, setSelectedNode] = useState(null);
   const [showNodeForm, setShowNodeForm] = useState(false);
   const [editingNode, setEditingNode] = useState(null);
@@ -156,16 +155,9 @@ const IntegrationLevel = () => {
         { id: 3, title: 'Link to Concept 1', targetNodeId: '1', nodeIds: ['4', '5', '6'] }
       ];
       
-      const mockRequisitions = [
-        { id: 1, title: 'Prerequisite 1' },
-        { id: 2, title: 'Prerequisite 2' },
-        { id: 3, title: 'Prerequisite 3' }
-      ];
-      
       setNodes(mockNodes);
       setEdges(mockEdges);
       setExternalLinks(mockExternalLinks);
-      setRequisitions(mockRequisitions);
     }
   }, [selectedProject]);
 
@@ -432,17 +424,7 @@ const IntegrationLevel = () => {
       
       {selectedProject && (
         <div className="integration-content">
-          {/* 顶部Requisitions */}
-          <div className="requisitions-section">
-            <h3>Requisitions</h3>
-            <div className="requisitions-container">
-              {requisitions.map(req => (
-                <div key={req.id} className="requisition-item">
-                  {req.title}
-                </div>
-              ))}
-            </div>
-          </div>
+
           
           <div className="main-content">
             {/* 左侧Graph区域 */}
@@ -979,30 +961,7 @@ const IntegrationLevel = () => {
           font-size: 14px;
         }
         
-        /* Requisitions */
-        .requisitions-section {
-          margin-bottom: 20px;
-        }
-        
-        .requisitions-section h3 {
-          margin-bottom: 10px;
-          color: #333;
-        }
-        
-        .requisitions-container {
-          display: flex;
-          gap: 15px;
-          flex-wrap: wrap;
-        }
-        
-        .requisition-item {
-          padding: 10px 16px;
-          background: #ffebee;
-          border-left: 4px solid #f44336;
-          border-radius: 6px;
-          color: #c62828;
-          font-weight: 500;
-        }
+
         
         /* 主内容区域 */
         .main-content {
