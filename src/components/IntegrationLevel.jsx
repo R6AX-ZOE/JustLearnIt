@@ -16,6 +16,7 @@ import '@uiw/react-markdown-editor/markdown-editor.css';
 const IntegrationLevel = () => {
   const [projects, setProjects] = useState([]);
   const [selectedProject, setSelectedProject] = useState(null);
+  const [selectedGraph, setSelectedGraph] = useState(null);
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [externalLinks, setExternalLinks] = useState([]);
@@ -40,16 +41,54 @@ const IntegrationLevel = () => {
     // 这里应该从后端API获取数据
     // 模拟数据，实际项目中会从服务器获取
     const mockProjects = [
-      { id: 1, name: 'Mathematics Fundamentals', description: 'Basic math concepts' },
-      { id: 2, name: 'Physics Principles', description: 'Fundamental physics laws' },
-      { id: 3, name: 'Computer Science Basics', description: 'Programming fundamentals' }
+      {
+        id: 1, 
+        name: 'Mathematics Fundamentals', 
+        description: 'Basic math concepts',
+        graphs: [
+          { id: 1, name: 'Algebra Concepts', description: 'Basic algebra principles' },
+          { id: 2, name: 'Geometry Fundamentals', description: 'Basic geometry concepts' },
+          { id: 3, name: 'Calculus Introduction', description: 'Introduction to calculus' }
+        ]
+      },
+      {
+        id: 2, 
+        name: 'Physics Principles', 
+        description: 'Fundamental physics laws',
+        graphs: [
+          { id: 1, name: 'Newtonian Mechanics', description: 'Newton\'s laws of motion' },
+          { id: 2, name: 'Thermodynamics', description: 'Heat and energy transfer' }
+        ]
+      },
+      {
+        id: 3, 
+        name: 'Computer Science Basics', 
+        description: 'Programming fundamentals',
+        graphs: [
+          { id: 1, name: 'Data Structures', description: 'Basic data structures' },
+          { id: 2, name: 'Algorithms', description: 'Common algorithms' },
+          { id: 3, name: 'Programming Paradigms', description: 'Different programming approaches' },
+          { id: 4, name: 'Database Concepts', description: 'Database design and management' }
+        ]
+      }
     ];
     setProjects(mockProjects);
   }, []);
 
-  // 当选择项目时，生成对应的graph数据
+  // 当选择项目时，清空graph相关状态
   useEffect(() => {
     if (selectedProject) {
+      setSelectedGraph(null);
+      setNodes([]);
+      setEdges([]);
+      setExternalLinks([]);
+      setSelectedNode(null);
+    }
+  }, [selectedProject]);
+
+  // 当选择graph时，生成对应的graph数据
+  useEffect(() => {
+    if (selectedGraph) {
       // 模拟生成graph数据
       const mockNodes = [
         {
@@ -163,7 +202,7 @@ const IntegrationLevel = () => {
       setEdges(mockEdges);
       setExternalLinks(mockExternalLinks);
     }
-  }, [selectedProject]);
+  }, [selectedGraph]);
 
   // 处理边的添加
   const onConnect = useCallback((params) => {
@@ -499,175 +538,47 @@ const IntegrationLevel = () => {
       
       {selectedProject && (
         <div className="integration-content">
-          {/* 前置项管理 */}
-          {selectedNode && (
-            <div className="prerequisites-section">
-              <div className="section-header">
-                <h3>Prerequisites</h3>
-                <button 
-                  className="control-btn"
-                  onClick={() => setShowRequisitionForm(true)}
+          {/* Graph选择 */}
+          <div className="graph-selection">
+            <h3>Select Graph</h3>
+            <div className="graphs-list">
+              {selectedProject.graphs.map(graph => (
+                <div 
+                  key={graph.id}
+                  className={`graph-item ${selectedGraph?.id === graph.id ? 'selected' : ''}`}
+                  onClick={() => setSelectedGraph(graph)}
                 >
-                  Add
-                </button>
-              </div>
-              <div className="prerequisites-list">
-                {selectedNode?.data?.prerequisites?.length > 0 ? (
-                  selectedNode.data.prerequisites.map((prereqId, index) => {
-                    const prereqNode = nodes.find(n => n.id === prereqId);
-                    return (
-                      <div key={index} className="prerequisite-item">
-                        <span>{prereqNode?.data?.label || `Node ${prereqId}`}</span>
-                        <button 
-                          className="action-btn delete-btn"
-                          onClick={() => handleDeleteRequisition(prereqId)}
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    );
-                  })
-                ) : (
-                  <p className="no-items">No prerequisites</p>
-                )}
-              </div>
+                  <h4>{graph.name}</h4>
+                  <p>{graph.description}</p>
+                </div>
+              ))}
             </div>
-          )}
+          </div>
           
-          <div className="main-content">
-            {/* 左侧Graph区域 */}
-            <div className="graph-section">
-              <div className="graph-header">
-                <h3>Graph</h3>
-                <div className="graph-controls">
-                  <button className="control-btn" onClick={() => setShowNodeForm(true)}>Add Node</button>
-                  {selectedNode && (
-                    <>
-                      <button className="control-btn" onClick={() => handleEditNode(selectedNode)}>Edit Node</button>
-                      <button className="control-btn delete-btn" onClick={() => handleDeleteNode(selectedNode.id)}>Delete Node</button>
-                    </>
-                  )}
-                </div>
-              </div>
-              <div className="graph-container">
-                <ReactFlow
-                  nodes={nodes}
-                  edges={edges}
-                  onNodesChange={onNodesChange}
-                  onEdgesChange={onEdgesChange}
-                  onConnect={onConnect}
-                  onNodeClick={handleNodeClick}
-                  onEdgeDoubleClick={handleEdgeDoubleClick}
-                  connectionLineType={ConnectionLineType.Bezier}
-                  defaultZoom={1.2}
-                  minZoom={0.5}
-                  maxZoom={2}
-                >
-                  <Background variant="dots" gap={12} size={1} />
-                  <Controls />
-                  <MiniMap />
-                </ReactFlow>
-              </div>
-              
-              {/* 外部链接管理 */}
-              <div className="external-links-section">
-                <div className="section-header">
-                  <h3>External Links</h3>
-                  <button className="add-btn" onClick={() => setShowLinkForm(true)}>Add Link</button>
-                </div>
-                <div className="external-links-container">
-                  {filteredExternalLinks.length > 0 ? (
-                    filteredExternalLinks.map(link => (
-                      <div key={link.id} className="external-link-item">
-                        <div className="link-content">
-                          {link.targetNodeId ? (
-                            <button 
-                              className="node-link-btn"
-                              onClick={() => {
-                                // 查找目标节点
-                                const targetNode = nodes.find(node => node.id === link.targetNodeId);
-                                if (targetNode) {
-                                  // 这里可以实现跳转到目标节点的逻辑
-                                  alert(`Link to: ${targetNode.data.label}`);
-                                  // 实际项目中可以实现节点定位或高亮
-                                }
-                              }}
-                            >
-                              {link.title}
-                            </button>
-                          ) : (
-                            <span>{link.title}</span>
-                          )}
-                        </div>
-                        <div className="link-actions">
-                          <button className="action-btn" onClick={() => handleEditLink(link)}>Edit</button>
-                          <button className="action-btn delete-btn" onClick={() => handleDeleteLink(link.id)}>Delete</button>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="no-links">{selectedNode ? 'No external links for this node' : 'Select a node to view external links'}</p>
-                  )}
-                </div>
-              </div>
-            </div>
-            
-            {/* 右侧管理区域 */}
-            <div className="management-section">
-              {/* 焦点节点信息 */}
+          {selectedGraph && (
+            <>
+              {/* 前置项管理 */}
               {selectedNode && (
-                <div className="node-info-section">
+                <div className="prerequisites-section">
                   <div className="section-header">
-                    <h3>Node Info</h3>
+                    <h3>Prerequisites</h3>
                     <button 
                       className="control-btn"
-                      onClick={() => {
-                        setNodeMarkdown(selectedNode.data.description || '');
-                        setShowMarkdownEditor(true);
-                      }}
-                    >
-                      Edit Description
-                    </button>
-                  </div>
-                  <div className="node-info">
-                    <p><strong>Label:</strong> {selectedNode.data.label}</p>
-                    <p><strong>Type:</strong> {selectedNode.data.type}</p>
-                    <div className="node-description">
-                      <p><strong>Description:</strong></p>
-                      <div className="description-content">
-                        {selectedNode.data.description ? (
-                          <MDEditor.Markdown source={selectedNode.data.description} />
-                        ) : (
-                          <p className="no-description">No description</p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-              
-              {/* 应用管理 */}
-              {selectedNode && (
-                <div className="applications-section">
-                  <div className="section-header">
-                    <h3>Applications</h3>
-                    <button 
-                      className="control-btn"
-                      onClick={() => setShowApplicationForm(true)}
+                      onClick={() => setShowRequisitionForm(true)}
                     >
                       Add
                     </button>
                   </div>
-                  <div className="applications-list">
-                    {selectedNode?.data?.applications?.length > 0 ? (
-                      selectedNode.data.applications.map((appId, index) => {
-                        const appNode = nodes.find(n => n.id === appId);
+                  <div className="prerequisites-list">
+                    {selectedNode?.data?.prerequisites?.length > 0 ? (
+                      selectedNode.data.prerequisites.map((prereqId, index) => {
+                        const prereqNode = nodes.find(n => n.id === prereqId);
                         return (
-                          <div key={index} className="application-item">
-                            <span>{appNode?.data?.label || `Node ${appId}`}</span>
+                          <div key={index} className="prerequisite-item">
+                            <span>{prereqNode?.data?.label || `Node ${prereqId}`}</span>
                             <button 
                               className="action-btn delete-btn"
-                              onClick={() => handleDeleteApplication(appId)}
+                              onClick={() => handleDeleteRequisition(prereqId)}
                             >
                               Delete
                             </button>
@@ -675,13 +586,162 @@ const IntegrationLevel = () => {
                         );
                       })
                     ) : (
-                      <p className="no-items">No applications</p>
+                      <p className="no-items">No prerequisites</p>
                     )}
                   </div>
                 </div>
               )}
-            </div>
-          </div>
+              
+              <div className="main-content">
+                {/* 左侧Graph区域 */}
+                <div className="graph-section">
+                  <div className="graph-header">
+                    <h3>Graph: {selectedGraph.name}</h3>
+                    <div className="graph-controls">
+                      <button className="control-btn" onClick={() => setShowNodeForm(true)}>Add Node</button>
+                      {selectedNode && (
+                        <>
+                          <button className="control-btn" onClick={() => handleEditNode(selectedNode)}>Edit Node</button>
+                          <button className="control-btn delete-btn" onClick={() => handleDeleteNode(selectedNode.id)}>Delete Node</button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  <div className="graph-container">
+                    <ReactFlow
+                      nodes={nodes}
+                      edges={edges}
+                      onNodesChange={onNodesChange}
+                      onEdgesChange={onEdgesChange}
+                      onConnect={onConnect}
+                      onNodeClick={handleNodeClick}
+                      onEdgeDoubleClick={handleEdgeDoubleClick}
+                      connectionLineType={ConnectionLineType.Bezier}
+                      defaultZoom={1.2}
+                      minZoom={0.5}
+                      maxZoom={2}
+                    >
+                      <Background variant="dots" gap={12} size={1} />
+                      <Controls />
+                      <MiniMap />
+                    </ReactFlow>
+                  </div>
+                  
+                  {/* 外部链接管理 */}
+                  <div className="external-links-section">
+                    <div className="section-header">
+                      <h3>External Links</h3>
+                      <button className="add-btn" onClick={() => setShowLinkForm(true)}>Add Link</button>
+                    </div>
+                    <div className="external-links-container">
+                      {filteredExternalLinks.length > 0 ? (
+                        filteredExternalLinks.map(link => (
+                          <div key={link.id} className="external-link-item">
+                            <div className="link-content">
+                              {link.targetNodeId ? (
+                                <button 
+                                  className="node-link-btn"
+                                  onClick={() => {
+                                    // 查找目标节点
+                                    const targetNode = nodes.find(node => node.id === link.targetNodeId);
+                                    if (targetNode) {
+                                      // 这里可以实现跳转到目标节点的逻辑
+                                      alert(`Link to: ${targetNode.data.label}`);
+                                      // 实际项目中可以实现节点定位或高亮
+                                    }
+                                  }}
+                                >
+                                  {link.title}
+                                </button>
+                              ) : (
+                                <span>{link.title}</span>
+                              )}
+                            </div>
+                            <div className="link-actions">
+                              <button className="action-btn" onClick={() => handleEditLink(link)}>Edit</button>
+                              <button className="action-btn delete-btn" onClick={() => handleDeleteLink(link.id)}>Delete</button>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="no-links">{selectedNode ? 'No external links for this node' : 'Select a node to view external links'}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                
+                {/* 右侧管理区域 */}
+                <div className="management-section">
+                  {/* 焦点节点信息 */}
+                  {selectedNode && (
+                    <div className="node-info-section">
+                      <div className="section-header">
+                        <h3>Node Info</h3>
+                        <button 
+                          className="control-btn"
+                          onClick={() => {
+                            setNodeMarkdown(selectedNode.data.description || '');
+                            setShowMarkdownEditor(true);
+                          }}
+                        >
+                          Edit Description
+                        </button>
+                      </div>
+                      <div className="node-info">
+                        <p><strong>Label:</strong> {selectedNode.data.label}</p>
+                        <p><strong>Type:</strong> {selectedNode.data.type}</p>
+                        <div className="node-description">
+                          <p><strong>Description:</strong></p>
+                          <div className="description-content">
+                            {selectedNode.data.description ? (
+                              <MDEditor.Markdown source={selectedNode.data.description} />
+                            ) : (
+                              <p className="no-description">No description</p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* 应用管理 */}
+                  {selectedNode && (
+                    <div className="applications-section">
+                      <div className="section-header">
+                        <h3>Applications</h3>
+                        <button 
+                          className="control-btn"
+                          onClick={() => setShowApplicationForm(true)}
+                        >
+                          Add
+                        </button>
+                      </div>
+                      <div className="applications-list">
+                        {selectedNode?.data?.applications?.length > 0 ? (
+                          selectedNode.data.applications.map((appId, index) => {
+                            const appNode = nodes.find(n => n.id === appId);
+                            return (
+                              <div key={index} className="application-item">
+                                <span>{appNode?.data?.label || `Node ${appId}`}</span>
+                                <button 
+                                  className="action-btn delete-btn"
+                                  onClick={() => handleDeleteApplication(appId)}
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            );
+                          })
+                        ) : (
+                          <p className="no-items">No applications</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
         </div>
       )}
       
@@ -1120,7 +1180,53 @@ const IntegrationLevel = () => {
           font-size: 14px;
         }
         
-
+        /* Graph选择 */
+        .graph-selection {
+          margin-bottom: 30px;
+        }
+        
+        .graph-selection h3 {
+          margin-bottom: 15px;
+          color: #333;
+        }
+        
+        .graphs-list {
+          display: flex;
+          gap: 20px;
+          overflow-x: auto;
+          padding: 10px 0;
+        }
+        
+        .graph-item {
+          flex: 0 0 250px;
+          padding: 20px;
+          background: white;
+          border-radius: 12px;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+        
+        .graph-item:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        .graph-item.selected {
+          border: 2px solid #667eea;
+          box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+        
+        .graph-item h4 {
+          margin: 0 0 10px 0;
+          color: #333;
+        }
+        
+        .graph-item p {
+          margin: 0;
+          color: #666;
+          font-size: 14px;
+        }
         
         /* 主内容区域 */
         .main-content {
