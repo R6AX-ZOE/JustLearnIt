@@ -10,6 +10,8 @@ import ReactFlow, {
   ConnectionLineType
 } from 'reactflow';
 import 'reactflow/dist/style.css';
+import MDEditor from '@uiw/react-markdown-editor';
+import '@uiw/react-markdown-editor/markdown-editor.css';
 
 const IntegrationLevel = () => {
   const [projects, setProjects] = useState([]);
@@ -30,6 +32,8 @@ const IntegrationLevel = () => {
   const [newApplication, setNewApplication] = useState({ title: '' });
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [edgeToDelete, setEdgeToDelete] = useState(null);
+  const [showMarkdownEditor, setShowMarkdownEditor] = useState(false);
+  const [nodeMarkdown, setNodeMarkdown] = useState('');
 
   // 模拟从后端获取项目数据
   useEffect(() => {
@@ -424,7 +428,40 @@ const IntegrationLevel = () => {
       
       {selectedProject && (
         <div className="integration-content">
-
+          {/* 前置项管理 */}
+          {selectedNode && (
+            <div className="prerequisites-section">
+              <div className="section-header">
+                <h3>Prerequisites</h3>
+                <button 
+                  className="control-btn"
+                  onClick={() => setShowRequisitionForm(true)}
+                >
+                  Add
+                </button>
+              </div>
+              <div className="prerequisites-list">
+                {selectedNode?.data?.prerequisites?.length > 0 ? (
+                  selectedNode.data.prerequisites.map((prereqId, index) => {
+                    const prereqNode = nodes.find(n => n.id === prereqId);
+                    return (
+                      <div key={index} className="prerequisite-item">
+                        <span>{prereqNode?.data?.label || `Node ${prereqId}`}</span>
+                        <button 
+                          className="action-btn delete-btn"
+                          onClick={() => handleDeleteRequisition(prereqId)}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <p className="no-items">No prerequisites</p>
+                )}
+              </div>
+            </div>
+          )}
           
           <div className="main-content">
             {/* 左侧Graph区域 */}
@@ -460,90 +497,6 @@ const IntegrationLevel = () => {
                   <MiniMap />
                 </ReactFlow>
               </div>
-            </div>
-            
-            {/* 右侧管理区域 */}
-            <div className="management-section">
-              {/* 焦点节点信息 */}
-              {selectedNode && (
-                <div className="node-info-section">
-                  <h3>Node Info</h3>
-                  <div className="node-info">
-                    <p><strong>Label:</strong> {selectedNode.data.label}</p>
-                    <p><strong>Type:</strong> {selectedNode.data.type}</p>
-                  </div>
-                </div>
-              )}
-              
-              {/* 前置项管理 */}
-              {selectedNode && (
-                <div className="prerequisites-section">
-                  <div className="section-header">
-                    <h3>Prerequisites</h3>
-                    <button 
-                      className="control-btn"
-                      onClick={() => setShowRequisitionForm(true)}
-                    >
-                      Add
-                    </button>
-                  </div>
-                  <div className="prerequisites-list">
-                    {selectedNode?.data?.prerequisites?.length > 0 ? (
-                      selectedNode.data.prerequisites.map((prereqId, index) => {
-                        const prereqNode = nodes.find(n => n.id === prereqId);
-                        return (
-                          <div key={index} className="prerequisite-item">
-                            <span>{prereqNode?.data?.label || `Node ${prereqId}`}</span>
-                            <button 
-                              className="action-btn delete-btn"
-                              onClick={() => handleDeleteRequisition(prereqId)}
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        );
-                      })
-                    ) : (
-                      <p className="no-items">No prerequisites</p>
-                    )}
-                  </div>
-                </div>
-              )}
-              
-              {/* 应用管理 */}
-              {selectedNode && (
-                <div className="applications-section">
-                  <div className="section-header">
-                    <h3>Applications</h3>
-                    <button 
-                      className="control-btn"
-                      onClick={() => setShowApplicationForm(true)}
-                    >
-                      Add
-                    </button>
-                  </div>
-                  <div className="applications-list">
-                    {selectedNode?.data?.applications?.length > 0 ? (
-                      selectedNode.data.applications.map((appId, index) => {
-                        const appNode = nodes.find(n => n.id === appId);
-                        return (
-                          <div key={index} className="application-item">
-                            <span>{appNode?.data?.label || `Node ${appId}`}</span>
-                            <button 
-                              className="action-btn delete-btn"
-                              onClick={() => handleDeleteApplication(appId)}
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        );
-                      })
-                    ) : (
-                      <p className="no-items">No applications</p>
-                    )}
-                  </div>
-                </div>
-              )}
               
               {/* 外部链接管理 */}
               <div className="external-links-section">
@@ -586,6 +539,76 @@ const IntegrationLevel = () => {
                   )}
                 </div>
               </div>
+            </div>
+            
+            {/* 右侧管理区域 */}
+            <div className="management-section">
+              {/* 焦点节点信息 */}
+              {selectedNode && (
+                <div className="node-info-section">
+                  <div className="section-header">
+                    <h3>Node Info</h3>
+                    <button 
+                      className="control-btn"
+                      onClick={() => {
+                        setNodeMarkdown(selectedNode.data.description || '');
+                        setShowMarkdownEditor(true);
+                      }}
+                    >
+                      Edit Description
+                    </button>
+                  </div>
+                  <div className="node-info">
+                    <p><strong>Label:</strong> {selectedNode.data.label}</p>
+                    <p><strong>Type:</strong> {selectedNode.data.type}</p>
+                    <div className="node-description">
+                      <p><strong>Description:</strong></p>
+                      <div className="description-content">
+                        {selectedNode.data.description ? (
+                          <MDEditor.Markdown source={selectedNode.data.description} />
+                        ) : (
+                          <p className="no-description">No description</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {/* 应用管理 */}
+              {selectedNode && (
+                <div className="applications-section">
+                  <div className="section-header">
+                    <h3>Applications</h3>
+                    <button 
+                      className="control-btn"
+                      onClick={() => setShowApplicationForm(true)}
+                    >
+                      Add
+                    </button>
+                  </div>
+                  <div className="applications-list">
+                    {selectedNode?.data?.applications?.length > 0 ? (
+                      selectedNode.data.applications.map((appId, index) => {
+                        const appNode = nodes.find(n => n.id === appId);
+                        return (
+                          <div key={index} className="application-item">
+                            <span>{appNode?.data?.label || `Node ${appId}`}</span>
+                            <button 
+                              className="action-btn delete-btn"
+                              onClick={() => handleDeleteApplication(appId)}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <p className="no-items">No applications</p>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -817,6 +840,66 @@ const IntegrationLevel = () => {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Markdown编辑器对话框 */}
+      {showMarkdownEditor && selectedNode && (
+        <div className="dialog-overlay">
+          <div className="dialog markdown-dialog">
+            <div className="dialog-header">
+              <h3>Edit Node Description</h3>
+              <button 
+                className="close-btn"
+                onClick={() => {
+                  setShowMarkdownEditor(false);
+                  setNodeMarkdown('');
+                }}
+              >
+                ×
+              </button>
+            </div>
+            <div className="dialog-content">
+              <MDEditor
+                value={nodeMarkdown}
+                onChange={(value) => setNodeMarkdown(value)}
+                height={400}
+              />
+              <div className="form-actions">
+                <button 
+                  className="btn btn-primary"
+                  onClick={() => {
+                    // 更新节点的描述
+                    const updatedNodes = nodes.map(node => 
+                      node.id === selectedNode.id 
+                        ? { 
+                            ...node, 
+                            data: { 
+                              ...node.data, 
+                              description: nodeMarkdown
+                            } 
+                          }
+                        : node
+                    );
+                    setNodes(updatedNodes);
+                    setShowMarkdownEditor(false);
+                    setNodeMarkdown('');
+                  }}
+                >
+                  Save
+                </button>
+                <button 
+                  className="btn btn-secondary"
+                  onClick={() => {
+                    setShowMarkdownEditor(false);
+                    setNodeMarkdown('');
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1293,6 +1376,35 @@ const IntegrationLevel = () => {
           padding: 20px;
         }
         
+        /* Markdown编辑器对话框 */
+        .markdown-dialog {
+          width: 90%;
+          max-width: 800px;
+          max-height: 90vh;
+          overflow-y: auto;
+        }
+        
+        .markdown-dialog .dialog-content {
+          padding: 10px;
+        }
+        
+        .node-description {
+          margin-top: 15px;
+        }
+        
+        .description-content {
+          margin-top: 10px;
+          padding: 15px;
+          background: #f9f9f9;
+          border-radius: 8px;
+          border: 1px solid #e0e0e0;
+        }
+        
+        .no-description {
+          color: #999;
+          font-style: italic;
+        }
+        
         .form-group {
           margin-bottom: 20px;
         }
@@ -1530,6 +1642,29 @@ const IntegrationLevel = () => {
           .action-btn {
             padding: 8px 12px;
             font-size: 14px;
+          }
+          
+          /* 移动端markdown编辑器 */
+          .markdown-dialog {
+            width: 95%;
+            max-height: 95vh;
+          }
+          
+          .markdown-dialog .dialog-content {
+            padding: 5px;
+          }
+          
+          .MDEditor {
+            font-size: 14px;
+          }
+          
+          .MDEditor-toolbar {
+            flex-wrap: wrap;
+          }
+          
+          .MDEditor-toolbar button {
+            padding: 6px;
+            font-size: 12px;
           }
         }
       `}</style>
