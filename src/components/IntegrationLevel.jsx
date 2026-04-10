@@ -238,6 +238,13 @@ const IntegrationLevel = () => {
             }
       );
       setNodes(updatedNodes);
+      // 更新selectedNode状态（如果正在编辑的是选中的节点）
+      if (selectedNode && selectedNode.id === editingNode.id) {
+        const updatedSelectedNode = updatedNodes.find(node => node.id === editingNode.id);
+        if (updatedSelectedNode) {
+          setSelectedNode(updatedSelectedNode);
+        }
+      }
       setEditingNode(null);
       setNewNode({ title: '', type: 'input' });
       setShowNodeForm(false);
@@ -310,18 +317,34 @@ const IntegrationLevel = () => {
       // 这里应该从后端API添加前置项
       console.log('Adding requisition:', newRequisition);
       // 模拟添加前置项
-      const updatedNodes = nodes.map(node => 
-        node.id === selectedNode.id 
-          ? { 
-              ...node, 
-              data: { 
-                ...node.data, 
-                prerequisites: [...(node.data.prerequisites || []), newRequisition.title]
-              } 
+      const updatedNodes = nodes.map(node => {
+        if (node.id === selectedNode.id) {
+          // 添加到当前节点的prerequisites
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              prerequisites: [...(node.data.prerequisites || []), newRequisition.title]
             }
-          : node
-      );
+          };
+        } else if (node.id === newRequisition.title) {
+          // 同时添加到目标节点的applications
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              applications: [...(node.data.applications || []), selectedNode.id]
+            }
+          };
+        }
+        return node;
+      });
       setNodes(updatedNodes);
+      // 更新selectedNode状态
+      const updatedSelectedNode = updatedNodes.find(node => node.id === selectedNode.id);
+      if (updatedSelectedNode) {
+        setSelectedNode(updatedSelectedNode);
+      }
       setNewRequisition({ title: '' });
       setShowRequisitionForm(false);
     }
@@ -333,18 +356,34 @@ const IntegrationLevel = () => {
       // 这里应该从后端API删除前置项
       console.log('Deleting requisition:', requisitionId);
       // 模拟删除前置项
-      const updatedNodes = nodes.map(node => 
-        node.id === selectedNode.id 
-          ? { 
-              ...node, 
-              data: { 
-                ...node.data, 
-                prerequisites: (node.data.prerequisites || []).filter(id => id !== requisitionId)
-              } 
+      const updatedNodes = nodes.map(node => {
+        if (node.id === selectedNode.id) {
+          // 从当前节点的prerequisites中删除
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              prerequisites: (node.data.prerequisites || []).filter(id => id !== requisitionId)
             }
-          : node
-      );
+          };
+        } else if (node.id === requisitionId) {
+          // 同时从目标节点的applications中删除
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              applications: (node.data.applications || []).filter(id => id !== selectedNode.id)
+            }
+          };
+        }
+        return node;
+      });
       setNodes(updatedNodes);
+      // 更新selectedNode状态
+      const updatedSelectedNode = updatedNodes.find(node => node.id === selectedNode.id);
+      if (updatedSelectedNode) {
+        setSelectedNode(updatedSelectedNode);
+      }
     }
   };
 
@@ -354,18 +393,34 @@ const IntegrationLevel = () => {
       // 这里应该从后端API添加应用
       console.log('Adding application:', newApplication);
       // 模拟添加应用
-      const updatedNodes = nodes.map(node => 
-        node.id === selectedNode.id 
-          ? { 
-              ...node, 
-              data: { 
-                ...node.data, 
-                applications: [...(node.data.applications || []), newApplication.title]
-              } 
+      const updatedNodes = nodes.map(node => {
+        if (node.id === selectedNode.id) {
+          // 添加到当前节点的applications
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              applications: [...(node.data.applications || []), newApplication.title]
             }
-          : node
-      );
+          };
+        } else if (node.id === newApplication.title) {
+          // 同时添加到目标节点的prerequisites
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              prerequisites: [...(node.data.prerequisites || []), selectedNode.id]
+            }
+          };
+        }
+        return node;
+      });
       setNodes(updatedNodes);
+      // 更新selectedNode状态
+      const updatedSelectedNode = updatedNodes.find(node => node.id === selectedNode.id);
+      if (updatedSelectedNode) {
+        setSelectedNode(updatedSelectedNode);
+      }
       setNewApplication({ title: '' });
       setShowApplicationForm(false);
     }
@@ -377,18 +432,34 @@ const IntegrationLevel = () => {
       // 这里应该从后端API删除应用
       console.log('Deleting application:', applicationId);
       // 模拟删除应用
-      const updatedNodes = nodes.map(node => 
-        node.id === selectedNode.id 
-          ? { 
-              ...node, 
-              data: { 
-                ...node.data, 
-                applications: (node.data.applications || []).filter(id => id !== applicationId)
-              } 
+      const updatedNodes = nodes.map(node => {
+        if (node.id === selectedNode.id) {
+          // 从当前节点的applications中删除
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              applications: (node.data.applications || []).filter(id => id !== applicationId)
             }
-          : node
-      );
+          };
+        } else if (node.id === applicationId) {
+          // 同时从目标节点的prerequisites中删除
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              prerequisites: (node.data.prerequisites || []).filter(id => id !== selectedNode.id)
+            }
+          };
+        }
+        return node;
+      });
       setNodes(updatedNodes);
+      // 更新selectedNode状态
+      const updatedSelectedNode = updatedNodes.find(node => node.id === selectedNode.id);
+      if (updatedSelectedNode) {
+        setSelectedNode(updatedSelectedNode);
+      }
     }
   };
 
@@ -884,6 +955,11 @@ const IntegrationLevel = () => {
                         : node
                     );
                     setNodes(updatedNodes);
+                    // 更新selectedNode状态
+                    const updatedSelectedNode = updatedNodes.find(node => node.id === selectedNode.id);
+                    if (updatedSelectedNode) {
+                      setSelectedNode(updatedSelectedNode);
+                    }
                     setShowMarkdownEditor(false);
                     setNodeMarkdown('');
                   }}
