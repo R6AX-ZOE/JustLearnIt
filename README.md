@@ -1,16 +1,7 @@
-# React + Vite
+# JustLearnIt
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+既然软件还没写完，我可以先在这里写的随意一些
 
-Currently, two official plugins are available:
+这个软件是一个基于React的辅助学习平台，用户可以学习不同的课程时在平台上在AI的辅助下记录笔记，整理学习到的知识，利用AI生成习题并进行练习与复习，使得用户面对自学资源时，提供一个梳理和反馈的平台，能够牢牢掌握学会的内容。
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+我目前完成的内容不多，后续会继续完善。现在主要做了用户登录注册功能，以及学习项目的流式输入和图式关联。听上去这不多，但这个深究下去细节一坨。但是后面接入AI应该没这么麻烦……吧？
