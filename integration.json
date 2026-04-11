@@ -5,7 +5,7 @@
     "description": "tpd",
     "userId": "1775049679386",
     "createdAt": "2026-04-10T10:45:11.418Z",
-    "updatedAt": "2026-04-10T11:00:45.692Z",
+    "updatedAt": "2026-04-11T16:14:33.139Z",
     "graphs": [
       {
         "id": "1",
@@ -15,32 +15,34 @@
           {
             "id": "1775817938595",
             "position": {
-              "x": 166.64459022542906,
-              "y": 116.21084627105029
+              "x": 114.12470268449033,
+              "y": 106.75499114254137
             },
             "data": {
               "label": "next",
               "type": "input",
               "prerequisites": [
-                "1775817949340"
+                "1775817949340",
+                "1775836350334"
               ],
-              "applications": []
+              "applications": [],
+              "description": "# title\n\nThis is a description"
             },
             "className": "graph-node input ",
             "width": 150,
             "height": 46,
             "selected": false,
             "positionAbsolute": {
-              "x": 166.64459022542906,
-              "y": 116.21084627105029
+              "x": 114.12470268449033,
+              "y": 106.75499114254137
             },
             "dragging": false
           },
           {
             "id": "1775817949340",
             "position": {
-              "x": 294.4099403200973,
-              "y": 261.7443470558322
+              "x": 239.9648006220841,
+              "y": 314.9354957542289
             },
             "data": {
               "label": "another",
@@ -55,8 +57,8 @@
             "height": 46,
             "selected": true,
             "positionAbsolute": {
-              "x": 294.4099403200973,
-              "y": 261.7443470558322
+              "x": 239.9648006220841,
+              "y": 314.9354957542289
             },
             "dragging": false
           }
@@ -68,9 +70,17 @@
             "target": "1775817949340",
             "targetHandle": null,
             "className": "graph-edge",
-            "id": "reactflow__edge-1775817938595-1775817949340"
+            "id": "reactflow__edge-1775817938595-1775817949340",
+            "selected": false
           }
         ]
+      },
+      {
+        "id": "1775824623692",
+        "name": "Another Graph",
+        "description": "as above",
+        "nodes": [],
+        "edges": []
       }
     ]
   },
@@ -80,14 +90,70 @@
     "description": "tppd",
     "userId": "1775049679386",
     "createdAt": "2026-04-10T10:47:22.615Z",
-    "updatedAt": "2026-04-10T10:48:43.150Z",
+    "updatedAt": "2026-04-11T15:33:16.933Z",
     "graphs": [
       {
         "id": "1",
         "name": "Main Graph",
         "description": "Default graph",
-        "nodes": [],
-        "edges": []
+        "nodes": [
+          {
+            "id": "1775836350334",
+            "position": {
+              "x": 99.99999999999994,
+              "y": 104.14869835499712
+            },
+            "data": {
+              "label": "1",
+              "type": "input",
+              "prerequisites": [],
+              "applications": [
+                "1775817938595"
+              ]
+            },
+            "className": "graph-node input selected",
+            "width": 150,
+            "height": 46,
+            "selected": true,
+            "positionAbsolute": {
+              "x": 99.99999999999994,
+              "y": 104.14869835499712
+            },
+            "dragging": false
+          },
+          {
+            "id": "1775836353460",
+            "position": {
+              "x": 275,
+              "y": 224
+            },
+            "data": {
+              "label": "2",
+              "type": "input",
+              "prerequisites": [],
+              "applications": []
+            },
+            "className": "graph-node input ",
+            "width": 150,
+            "height": 46,
+            "selected": false,
+            "positionAbsolute": {
+              "x": 275,
+              "y": 224
+            },
+            "dragging": false
+          }
+        ],
+        "edges": [
+          {
+            "source": "1775836350334",
+            "sourceHandle": null,
+            "target": "1775836353460",
+            "targetHandle": null,
+            "className": "graph-edge",
+            "id": "reactflow__edge-1775836350334-1775836353460"
+          }
+        ]
       }
     ]
   }

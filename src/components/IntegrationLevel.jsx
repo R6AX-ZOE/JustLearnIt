@@ -7,7 +7,9 @@ import ReactFlow, {
   useNodesState, 
   useEdgesState,
   addEdge,
-  ConnectionLineType
+  ConnectionLineType,
+  useReactFlow,
+  ReactFlowProvider
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import MDEditor from '@uiw/react-markdown-editor';
@@ -17,11 +19,20 @@ import axios from 'axios';
 const API_BASE = '/api/integration';
 
 const IntegrationLevel = () => {
+  return (
+    <ReactFlowProvider>
+      <IntegrationLevelContent />
+    </ReactFlowProvider>
+  );
+};
+
+const IntegrationLevelContent = () => {
   const [projects, setProjects] = useState([]);
   const [selectedProject, setSelectedProject] = useState(null);
   const [selectedGraph, setSelectedGraph] = useState(null);
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const reactFlowInstance = useReactFlow();
   const [externalLinks, setExternalLinks] = useState([]);
   const [selectedNode, setSelectedNode] = useState(null);
   const [showNodeForm, setShowNodeForm] = useState(false);
@@ -31,9 +42,9 @@ const IntegrationLevel = () => {
   const [editingLink, setEditingLink] = useState(null);
   const [newLink, setNewLink] = useState({ title: '', targetNodeId: '', nodeIds: [] });
   const [showRequisitionForm, setShowRequisitionForm] = useState(false);
-  const [newRequisition, setNewRequisition] = useState({ title: '' });
+  const [newRequisition, setNewRequisition] = useState({ projectId: '', graphId: '', nodeId: '' });
   const [showApplicationForm, setShowApplicationForm] = useState(false);
-  const [newApplication, setNewApplication] = useState({ title: '' });
+  const [newApplication, setNewApplication] = useState({ projectId: '', graphId: '', nodeId: '' });
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [edgeToDelete, setEdgeToDelete] = useState(null);
   const [showMarkdownEditor, setShowMarkdownEditor] = useState(false);
@@ -60,16 +71,20 @@ const IntegrationLevel = () => {
     
     setIsSaving(true);
     try {
-      await axios.put(`${API_BASE}/project/${selectedProject.id}/graph/${selectedGraph.id}`, {
+      const response = await axios.put(`${API_BASE}/project/${selectedProject.id}/graph/${selectedGraph.id}`, {
         nodes,
         edges
       });
+      // 更新selectedProject状态，确保前端数据与服务器保持一致
+      setProjects(projects.map(project => 
+        project.id === selectedProject.id ? response.data.project : project
+      ));
     } catch (error) {
       console.error('Error saving graph:', error);
     } finally {
       setIsSaving(false);
     }
-  }, [selectedProject, selectedGraph, nodes, edges, isSaving]);
+  }, [selectedProject, selectedGraph, nodes, edges, isSaving, projects]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -311,10 +326,24 @@ const IntegrationLevel = () => {
     setExternalLinks(externalLinks.filter(link => link.id !== linkId));
   };
 
+  // 获取所有graph中的所有节点
+  const getAllNodes = () => {
+    let allNodes = [];
+    projects.forEach(project => {
+      project.graphs?.forEach(graph => {
+        if (graph.nodes) {
+          allNodes = [...allNodes, ...graph.nodes];
+        }
+      });
+    });
+    return allNodes;
+  };
+
   const handleAddRequisition = () => {
     if (selectedNode) {
-      const targetNodeId = newRequisition.title;
-      const targetNode = nodes.find(n => n.id === targetNodeId);
+      const targetNodeId = newRequisition.nodeId;
+      const allNodes = getAllNodes();
+      const targetNode = allNodes.find(n => n.id === targetNodeId);
       if (!targetNode) {
         alert('Target node not found');
         return;
@@ -329,7 +358,7 @@ const IntegrationLevel = () => {
               prerequisites: [...(node.data.prerequisites || []), targetNodeId]
             }
           };
-        } else if (node.id === targetNodeId) {
+        } else if (node.id === targetNodeId && nodes.some(n => n.id === targetNodeId)) {
           return {
             ...node,
             data: {
@@ -342,14 +371,22 @@ const IntegrationLevel = () => {
       });
       
       setNodes(updatedNodes);
-      setNewRequisition({ title: '' });
+      // 更新selectedNode为最新的节点数据
+      if (selectedNode) {
+        const updatedSelectedNode = updatedNodes.find(node => node.id === selectedNode.id);
+        if (updatedSelectedNode) {
+          setSelectedNode(updatedSelectedNode);
+        }
+      }
+      setNewRequisition({ projectId: '', graphId: '', nodeId: '' });
       setShowRequisitionForm(false);
     }
   };
 
   const handleDeleteRequisition = (requisitionId) => {
     if (selectedNode) {
-      const targetNode = nodes.find(n => n.id === requisitionId);
+      const allNodes = getAllNodes();
+      const targetNode = allNodes.find(n => n.id === requisitionId);
       
       const updatedNodes = nodes.map(node => {
         if (node.id === selectedNode.id) {
@@ -360,7 +397,7 @@ const IntegrationLevel = () => {
               prerequisites: (node.data.prerequisites || []).filter(id => id !== requisitionId)
             }
           };
-        } else if (targetNode && node.id === requisitionId) {
+        } else if (targetNode && node.id === requisitionId && nodes.some(n => n.id === requisitionId)) {
           return {
             ...node,
             data: {
@@ -373,13 +410,21 @@ const IntegrationLevel = () => {
       });
       
       setNodes(updatedNodes);
+      // 更新selectedNode为最新的节点数据
+      if (selectedNode) {
+        const updatedSelectedNode = updatedNodes.find(node => node.id === selectedNode.id);
+        if (updatedSelectedNode) {
+          setSelectedNode(updatedSelectedNode);
+        }
+      }
     }
   };
 
   const handleAddApplication = () => {
     if (selectedNode) {
-      const targetNodeId = newApplication.title;
-      const targetNode = nodes.find(n => n.id === targetNodeId);
+      const targetNodeId = newApplication.nodeId;
+      const allNodes = getAllNodes();
+      const targetNode = allNodes.find(n => n.id === targetNodeId);
       if (!targetNode) {
         alert('Target node not found');
         return;
@@ -394,7 +439,7 @@ const IntegrationLevel = () => {
               applications: [...(node.data.applications || []), targetNodeId]
             }
           };
-        } else if (node.id === targetNodeId) {
+        } else if (node.id === targetNodeId && nodes.some(n => n.id === targetNodeId)) {
           return {
             ...node,
             data: {
@@ -407,14 +452,22 @@ const IntegrationLevel = () => {
       });
       
       setNodes(updatedNodes);
-      setNewApplication({ title: '' });
+      // 更新selectedNode为最新的节点数据
+      if (selectedNode) {
+        const updatedSelectedNode = updatedNodes.find(node => node.id === selectedNode.id);
+        if (updatedSelectedNode) {
+          setSelectedNode(updatedSelectedNode);
+        }
+      }
+      setNewApplication({ projectId: '', graphId: '', nodeId: '' });
       setShowApplicationForm(false);
     }
   };
 
   const handleDeleteApplication = (applicationId) => {
     if (selectedNode) {
-      const targetNode = nodes.find(n => n.id === applicationId);
+      const allNodes = getAllNodes();
+      const targetNode = allNodes.find(n => n.id === applicationId);
       
       const updatedNodes = nodes.map(node => {
         if (node.id === selectedNode.id) {
@@ -425,7 +478,7 @@ const IntegrationLevel = () => {
               applications: (node.data.applications || []).filter(id => id !== applicationId)
             }
           };
-        } else if (targetNode && node.id === applicationId) {
+        } else if (targetNode && node.id === applicationId && nodes.some(n => n.id === applicationId)) {
           return {
             ...node,
             data: {
@@ -438,6 +491,60 @@ const IntegrationLevel = () => {
       });
       
       setNodes(updatedNodes);
+      // 更新selectedNode为最新的节点数据
+      if (selectedNode) {
+        const updatedSelectedNode = updatedNodes.find(node => node.id === selectedNode.id);
+        if (updatedSelectedNode) {
+          setSelectedNode(updatedSelectedNode);
+        }
+      }
+    }
+  };
+
+  const handleNodeClickFromList = (nodeId) => {
+    // 首先在当前nodes中查找
+    let targetNode = nodes.find(n => n.id === nodeId);
+    
+    if (targetNode && reactFlowInstance) {
+      // 跳转到节点位置
+      reactFlowInstance.fitView({
+        nodes: [nodeId],
+        padding: 100
+      });
+      
+      // 选中节点并突出显示
+      const updatedNodes = nodes.map(node => ({
+        ...node,
+        className: `graph-node ${node.data.type || 'input'} ${node.id === nodeId ? 'selected' : ''}`
+      }));
+      setNodes(updatedNodes);
+      setSelectedNode(targetNode);
+    } else {
+      // 如果在当前nodes中找不到，说明是来自其他graph的节点
+      // 查找该节点所在的project和graph
+      let targetProject = null;
+      let targetGraph = null;
+      
+      for (const project of projects) {
+        for (const graph of project.graphs || []) {
+          if (graph.nodes && graph.nodes.some(node => node.id === nodeId)) {
+            targetProject = project;
+            targetGraph = graph;
+            targetNode = graph.nodes.find(node => node.id === nodeId);
+            break;
+          }
+        }
+        if (targetProject) break;
+      }
+      
+      if (targetProject && targetGraph && targetNode) {
+        // 切换到目标project和graph
+        setSelectedProject(targetProject);
+        setSelectedGraph(targetGraph);
+        // 这里不需要手动设置nodes和edges，因为useEffect会处理
+        // 但是我们需要设置selectedNode，以便在切换后选中该节点
+        setSelectedNode(targetNode);
+      }
     }
   };
 
@@ -458,15 +565,15 @@ const IntegrationLevel = () => {
             {user ? `Logged in as: ${user.username}` : 'Not logged in'}
           </div>
         </div>
-        <div className="header-right">
-          <button className="control-btn" onClick={() => setShowProjectForm(true)}>
-            New Project
-          </button>
-        </div>
       </div>
       
       <div className="project-selection">
-        <h3>Select Project</h3>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+          <h3>Select Project</h3>
+          <button className="create-btn" onClick={() => setShowProjectForm(true)}>
+            New Project
+          </button>
+        </div>
         <div className="projects-list">
           {projects.map(project => (
             <div 
@@ -485,7 +592,7 @@ const IntegrationLevel = () => {
         <div className="graph-selection">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
             <h3>Select Graph ({selectedProject.graphs?.length || 0} graphs)</h3>
-            <button className="control-btn" onClick={() => setShowGraphForm(true)}>
+            <button className="create-btn" onClick={() => setShowGraphForm(true)}>
               New Graph
             </button>
           </div>
@@ -534,7 +641,6 @@ const IntegrationLevel = () => {
                   onNodeClick={handleNodeClick}
                   onEdgeDoubleClick={handleEdgeDoubleClick}
                   connectionLineType={ConnectionLineType.Bezier}
-                  defaultZoom={1.2}
                   minZoom={0.5}
                   maxZoom={2}
                 >
@@ -590,7 +696,14 @@ const IntegrationLevel = () => {
                     <h3>Prerequisites</h3>
                     <button 
                       className="control-btn"
-                      onClick={() => setShowRequisitionForm(true)}
+                      onClick={() => {
+                        setNewRequisition({
+                          projectId: selectedProject?.id || '',
+                          graphId: selectedGraph?.id || '',
+                          nodeId: ''
+                        });
+                        setShowRequisitionForm(true);
+                      }}
                     >
                       Add
                     </button>
@@ -598,10 +711,15 @@ const IntegrationLevel = () => {
                   <div className="prerequisites-list">
                     {selectedNode?.data?.prerequisites?.length > 0 ? (
                       selectedNode.data.prerequisites.map((prereqId, index) => {
-                        const prereqNode = nodes.find(n => n.id === prereqId);
+                        const prereqNode = getAllNodes().find(n => n.id === prereqId);
                         return (
                           <div key={index} className="prerequisite-item">
-                            <span>{prereqNode?.data?.label || `Node ${prereqId}`}</span>
+                            <span 
+                              style={{ cursor: 'pointer', textDecoration: 'underline' }}
+                              onClick={() => handleNodeClickFromList(prereqId)}
+                            >
+                              {prereqNode?.data?.label || `Node ${prereqId}`}
+                            </span>
                             <button 
                               className="action-btn delete-btn"
                               onClick={() => handleDeleteRequisition(prereqId)}
@@ -655,7 +773,14 @@ const IntegrationLevel = () => {
                     <h3>Applications</h3>
                     <button 
                       className="control-btn"
-                      onClick={() => setShowApplicationForm(true)}
+                      onClick={() => {
+                        setNewApplication({
+                          projectId: selectedProject?.id || '',
+                          graphId: selectedGraph?.id || '',
+                          nodeId: ''
+                        });
+                        setShowApplicationForm(true);
+                      }}
                     >
                       Add
                     </button>
@@ -663,10 +788,15 @@ const IntegrationLevel = () => {
                   <div className="applications-list">
                     {selectedNode?.data?.applications?.length > 0 ? (
                       selectedNode.data.applications.map((appId, index) => {
-                        const appNode = nodes.find(n => n.id === appId);
+                        const appNode = getAllNodes().find(n => n.id === appId);
                         return (
                           <div key={index} className="application-item">
-                            <span>{appNode?.data?.label || `Node ${appId}`}</span>
+                            <span 
+                              style={{ cursor: 'pointer', textDecoration: 'underline' }}
+                              onClick={() => handleNodeClickFromList(appId)}
+                            >
+                              {appNode?.data?.label || `Node ${appId}`}
+                            </span>
                             <button 
                               className="action-btn delete-btn"
                               onClick={() => handleDeleteApplication(appId)}
@@ -881,13 +1011,12 @@ const IntegrationLevel = () => {
                 </div>
                 <div className="form-group">
                   <label>Type</label>
-                  <select 
+                  <input 
+                    type="text" 
                     value={newNode.type}
                     onChange={(e) => setNewNode({ ...newNode, type: e.target.value })}
-                  >
-                    <option value="input">Input</option>
-                    <option value="connection">Connection</option>
-                  </select>
+                    placeholder="Enter node type"
+                  />
                 </div>
                 <div className="form-actions">
                   <button type="submit" className="btn btn-primary">{editingNode ? 'Update' : 'Add'}</button>
@@ -994,7 +1123,7 @@ const IntegrationLevel = () => {
                 className="close-btn"
                 onClick={() => {
                   setShowRequisitionForm(false);
-                  setNewRequisition({ title: '' });
+                  setNewRequisition({ projectId: '', graphId: '', nodeId: '' });
                 }}
               >
                 ×
@@ -1006,14 +1135,51 @@ const IntegrationLevel = () => {
                 handleAddRequisition();
               }}>
                 <div className="form-group">
-                  <label>Target Node *</label>
+                  <label>Project *</label>
                   <select 
-                    value={newRequisition.title}
-                    onChange={(e) => setNewRequisition({ title: e.target.value })}
+                    value={newRequisition.projectId}
+                    onChange={(e) => {
+                      const projectId = e.target.value;
+                      setNewRequisition({ projectId, graphId: '', nodeId: '' });
+                    }}
                     required
                   >
-                    <option value="">Select target node</option>
-                    {nodes.filter(n => n.id !== selectedNode?.id).map(node => (
+                    <option value="">Select project</option>
+                    {projects.map(project => (
+                      <option key={project.id} value={project.id}>{project.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label>Graph *</label>
+                  <select 
+                    value={newRequisition.graphId}
+                    onChange={(e) => {
+                      const graphId = e.target.value;
+                      setNewRequisition(prev => ({ ...prev, graphId, nodeId: '' }));
+                    }}
+                    required
+                    disabled={!newRequisition.projectId}
+                  >
+                    <option value="">Select graph</option>
+                    {projects.find(p => p.id === newRequisition.projectId)?.graphs?.map(graph => (
+                      <option key={graph.id} value={graph.id}>{graph.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label>Node *</label>
+                  <select 
+                    value={newRequisition.nodeId}
+                    onChange={(e) => {
+                      const nodeId = e.target.value;
+                      setNewRequisition(prev => ({ ...prev, nodeId }));
+                    }}
+                    required
+                    disabled={!newRequisition.graphId}
+                  >
+                    <option value="">Select node</option>
+                    {projects.find(p => p.id === newRequisition.projectId)?.graphs?.find(g => g.id === newRequisition.graphId)?.nodes?.filter(n => n.id !== selectedNode?.id).map(node => (
                       <option key={node.id} value={node.id}>{node.data.label}</option>
                     ))}
                   </select>
@@ -1022,7 +1188,7 @@ const IntegrationLevel = () => {
                   <button type="submit" className="btn btn-primary">Add</button>
                   <button type="button" className="btn btn-secondary" onClick={() => {
                     setShowRequisitionForm(false);
-                    setNewRequisition({ title: '' });
+                    setNewRequisition({ projectId: '', graphId: '', nodeId: '' });
                   }}>
                     Cancel
                   </button>
@@ -1042,7 +1208,7 @@ const IntegrationLevel = () => {
                 className="close-btn"
                 onClick={() => {
                   setShowApplicationForm(false);
-                  setNewApplication({ title: '' });
+                  setNewApplication({ projectId: '', graphId: '', nodeId: '' });
                 }}
               >
                 ×
@@ -1054,14 +1220,51 @@ const IntegrationLevel = () => {
                 handleAddApplication();
               }}>
                 <div className="form-group">
-                  <label>Target Node *</label>
+                  <label>Project *</label>
                   <select 
-                    value={newApplication.title}
-                    onChange={(e) => setNewApplication({ title: e.target.value })}
+                    value={newApplication.projectId}
+                    onChange={(e) => {
+                      const projectId = e.target.value;
+                      setNewApplication({ projectId, graphId: '', nodeId: '' });
+                    }}
                     required
                   >
-                    <option value="">Select target node</option>
-                    {nodes.filter(n => n.id !== selectedNode?.id).map(node => (
+                    <option value="">Select project</option>
+                    {projects.map(project => (
+                      <option key={project.id} value={project.id}>{project.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label>Graph *</label>
+                  <select 
+                    value={newApplication.graphId}
+                    onChange={(e) => {
+                      const graphId = e.target.value;
+                      setNewApplication(prev => ({ ...prev, graphId, nodeId: '' }));
+                    }}
+                    required
+                    disabled={!newApplication.projectId}
+                  >
+                    <option value="">Select graph</option>
+                    {projects.find(p => p.id === newApplication.projectId)?.graphs?.map(graph => (
+                      <option key={graph.id} value={graph.id}>{graph.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label>Node *</label>
+                  <select 
+                    value={newApplication.nodeId}
+                    onChange={(e) => {
+                      const nodeId = e.target.value;
+                      setNewApplication(prev => ({ ...prev, nodeId }));
+                    }}
+                    required
+                    disabled={!newApplication.graphId}
+                  >
+                    <option value="">Select node</option>
+                    {projects.find(p => p.id === newApplication.projectId)?.graphs?.find(g => g.id === newApplication.graphId)?.nodes?.filter(n => n.id !== selectedNode?.id).map(node => (
                       <option key={node.id} value={node.id}>{node.data.label}</option>
                     ))}
                   </select>
@@ -1070,7 +1273,7 @@ const IntegrationLevel = () => {
                   <button type="submit" className="btn btn-primary">Add</button>
                   <button type="button" className="btn btn-secondary" onClick={() => {
                     setShowApplicationForm(false);
-                    setNewApplication({ title: '' });
+                    setNewApplication({ projectId: '', graphId: '', nodeId: '' });
                   }}>
                     Cancel
                   </button>
@@ -1118,6 +1321,13 @@ const IntegrationLevel = () => {
                         : node
                     );
                     setNodes(updatedNodes);
+                    // 更新selectedNode为最新的节点数据
+                    if (selectedNode) {
+                      const updatedSelectedNode = updatedNodes.find(node => node.id === selectedNode.id);
+                      if (updatedSelectedNode) {
+                        setSelectedNode(updatedSelectedNode);
+                      }
+                    }
                     setShowMarkdownEditor(false);
                     setNodeMarkdown('');
                   }}
@@ -1253,6 +1463,7 @@ const IntegrationLevel = () => {
           box-shadow: 0 2px 8px rgba(0,0,0,0.1);
           cursor: pointer;
           transition: all 0.2s ease;
+          user-select: none;
         }
         
         .project-item:hover {
@@ -1261,8 +1472,14 @@ const IntegrationLevel = () => {
         }
         
         .project-item.selected {
-          border: 2px solid #667eea;
-          box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
+          box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        
+        .project-item.selected h4,
+        .project-item.selected p {
+          color: white;
         }
         
         .project-item h4 {
@@ -1296,6 +1513,7 @@ const IntegrationLevel = () => {
           box-shadow: 0 2px 8px rgba(0,0,0,0.1);
           cursor: pointer;
           transition: all 0.2s ease;
+          user-select: none;
         }
         
         .graph-item:hover {
@@ -1304,8 +1522,14 @@ const IntegrationLevel = () => {
         }
         
         .graph-item.selected {
-          border: 2px solid #667eea;
-          box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
+          box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        
+        .graph-item.selected h4,
+        .graph-item.selected p {
+          color: white;
         }
         
         .graph-item h4 {
@@ -1353,10 +1577,10 @@ const IntegrationLevel = () => {
         }
         
         .control-btn {
-          padding: 6px 12px;
+          padding: 10px 20px;
           border: 1px solid #ddd;
           background: white;
-          border-radius: 4px;
+          border-radius: 6px;
           cursor: pointer;
           font-size: 14px;
           transition: all 0.2s ease;
@@ -1364,6 +1588,25 @@ const IntegrationLevel = () => {
         
         .control-btn:hover {
           background: #f0f0f0;
+          transform: translateY(-1px);
+          box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .create-btn {
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
+          border: none;
+          padding: 10px 20px;
+          border-radius: 6px;
+          cursor: pointer;
+          font-size: 14px;
+          font-weight: 600;
+          transition: all 0.3s ease;
+        }
+        
+        .create-btn:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
         }
         
         .control-btn.delete-btn {
@@ -1496,17 +1739,20 @@ const IntegrationLevel = () => {
         }
         
         .add-btn {
-          padding: 6px 12px;
-          border: none;
-          background: #667eea;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
           color: white;
-          border-radius: 4px;
+          border: none;
+          padding: 10px 20px;
+          border-radius: 6px;
           cursor: pointer;
           font-size: 14px;
+          font-weight: 600;
+          transition: all 0.3s ease;
         }
         
         .add-btn:hover {
-          background: #5a67d8;
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
         }
         
         .dialog-overlay {
@@ -1622,12 +1868,14 @@ const IntegrationLevel = () => {
         }
         
         .btn-primary {
-          background: #667eea;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
           color: white;
+          transition: all 0.3s ease;
         }
         
         .btn-primary:hover {
-          background: #5a67d8;
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
         }
         
         .btn-secondary {
