@@ -4,6 +4,7 @@ import Login from './components/Auth/Login';
 import Home from './components/Home';
 import LearningProjects from './components/LearningProjects';
 import IntegrationLevel from './components/IntegrationLevel';
+import PracticeLevel from './components/PracticeLevel';
 import './App.css';
 
 // 检查用户是否已登录
@@ -37,6 +38,11 @@ function App() {
           <Route path="/integration" element={
             <ProtectedRoute>
               <IntegrationLevel />
+            </ProtectedRoute>
+          } />
+          <Route path="/practice" element={
+            <ProtectedRoute>
+              <PracticeLevel />
             </ProtectedRoute>
           } />
           <Route path="/login" element={<Login />} />

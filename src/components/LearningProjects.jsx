@@ -482,6 +482,7 @@ const LearningProjects = () => {
           <div className="navigation-links">
             <a href="/" className="nav-link">Home</a>
             <a href="/integration" className="nav-link">Integration Level</a>
+            <a href="/practice" className="nav-link">Practice Level</a>
           </div>
         </div>
         <button onClick={handleCreateProject} className="create-btn">Create New Input</button>

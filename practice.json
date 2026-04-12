@@ -1,0 +1,40 @@
+[
+  {
+    "id": "1775973601018",
+    "name": "tp",
+    "description": "tpd",
+    "userId": "1775049679386",
+    "createdAt": "2026-04-12T06:00:01.018Z",
+    "updatedAt": "2026-04-12T06:04:53.267Z",
+    "practices": [
+      {
+        "id": "1775973616626",
+        "name": "tpp",
+        "description": "tppd",
+        "questions": [
+          {
+            "id": "1775973673262",
+            "type": "fill-blank",
+            "question": "What is this?",
+            "options": [],
+            "correctAnswer": "Answer",
+            "feedback": "Some Feedback"
+          },
+          {
+            "id": "1775973893267",
+            "type": "multiple-choice",
+            "question": "Choose A",
+            "options": [
+              "A",
+              "B",
+              "C",
+              "D"
+            ],
+            "correctAnswer": "A",
+            "feedback": ""
+          }
+        ]
+      }
+    ]
+  }
+]

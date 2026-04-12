@@ -560,6 +560,7 @@ const IntegrationLevelContent = () => {
           <div className="navigation-links">
             <Link to="/" className="nav-link">Home</Link>
             <Link to="/input" className="nav-link">Input Level</Link>
+            <Link to="/practice" className="nav-link">Practice Level</Link>
           </div>
           <div className="user-status">
             {user ? `Logged in as: ${user.username}` : 'Not logged in'}
