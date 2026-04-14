@@ -13,8 +13,58 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import MDEditor from '@uiw/react-markdown-editor';
+import katex from 'katex';
+import 'katex/dist/katex.min.css';
 import '@uiw/react-markdown-editor/markdown-editor.css';
 import axios from 'axios';
+
+// 自定义Markdown组件，支持KaTeX
+const MarkdownWithKaTeX = ({ source, style }) => {
+  const [processedSource, setProcessedSource] = useState('');
+  
+  useEffect(() => {
+    // 处理KaTeX公式
+    let processedText = source;
+    
+    // 处理块级公式 $$...$$
+    const blockFormulaRegex = /\$\$([\s\S]*?)\$\$/g;
+    processedText = processedText.replace(blockFormulaRegex, (match, formula) => {
+      try {
+        const html = katex.renderToString(formula.trim(), {
+          throwOnError: false,
+          displayMode: true
+        });
+        return `<div class="katex-display">${html}</div>`;
+      } catch (error) {
+        console.error('Error rendering KaTeX block formula:', error);
+        return match;
+      }
+    });
+    
+    // 处理行内公式 $...$
+    const inlineFormulaRegex = /\$([^\$]+)\$/g;
+    processedText = processedText.replace(inlineFormulaRegex, (match, formula) => {
+      try {
+        const html = katex.renderToString(formula.trim(), {
+          throwOnError: false,
+          displayMode: false
+        });
+        return `<span class="katex-inline">${html}</span>`;
+      } catch (error) {
+        console.error('Error rendering KaTeX inline formula:', error);
+        return match;
+      }
+    });
+    
+    setProcessedSource(processedText);
+  }, [source]);
+  
+  return (
+    <div style={style}>
+      <MDEditor.Markdown source={processedSource} />
+    </div>
+  );
+};
 
 const API_BASE = '/api/integration';
 
@@ -56,6 +106,8 @@ const IntegrationLevelContent = () => {
   const [showGraphEditForm, setShowGraphEditForm] = useState(false);
   const [editingGraph, setEditingGraph] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [lastSavedNodes, setLastSavedNodes] = useState([]);
+  const [lastSavedEdges, setLastSavedEdges] = useState([]);
 
   const [user, setUser] = useState(null);
 
@@ -66,8 +118,35 @@ const IntegrationLevelContent = () => {
     }
   }, []);
 
+  // 检查nodes或edges是否发生变化
+  const hasChanges = useCallback(() => {
+    if (lastSavedNodes.length !== nodes.length || lastSavedEdges.length !== edges.length) {
+      return true;
+    }
+    
+    // 检查nodes是否变化
+    for (let i = 0; i < nodes.length; i++) {
+      const currentNode = nodes[i];
+      const lastSavedNode = lastSavedNodes.find(n => n.id === currentNode.id);
+      if (!lastSavedNode || JSON.stringify(currentNode) !== JSON.stringify(lastSavedNode)) {
+        return true;
+      }
+    }
+    
+    // 检查edges是否变化
+    for (let i = 0; i < edges.length; i++) {
+      const currentEdge = edges[i];
+      const lastSavedEdge = lastSavedEdges.find(e => e.id === currentEdge.id);
+      if (!lastSavedEdge || JSON.stringify(currentEdge) !== JSON.stringify(lastSavedEdge)) {
+        return true;
+      }
+    }
+    
+    return false;
+  }, [nodes, edges, lastSavedNodes, lastSavedEdges]);
+
   const saveGraphToServer = useCallback(async () => {
-    if (!selectedProject || !selectedGraph || isSaving) return;
+    if (!selectedProject || !selectedGraph || isSaving || !hasChanges()) return;
     
     setIsSaving(true);
     try {
@@ -79,17 +158,20 @@ const IntegrationLevelContent = () => {
       setProjects(projects.map(project => 
         project.id === selectedProject.id ? response.data.project : project
       ));
+      // 更新上次保存的nodes和edges
+      setLastSavedNodes(nodes);
+      setLastSavedEdges(edges);
     } catch (error) {
       console.error('Error saving graph:', error);
     } finally {
       setIsSaving(false);
     }
-  }, [selectedProject, selectedGraph, nodes, edges, isSaving, projects]);
+  }, [selectedProject, selectedGraph, nodes, edges, isSaving, projects, hasChanges]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
       saveGraphToServer();
-    }, 1000);
+    }, 5000); // 降低保存频率到5秒
     return () => clearTimeout(timer);
   }, [nodes, edges, saveGraphToServer]);
 
@@ -193,9 +275,12 @@ const IntegrationLevelContent = () => {
       if (graphData) {
         setNodes(graphData.nodes || []);
         setEdges(graphData.edges || []);
+        // 初始化上次保存的nodes和edges
+        setLastSavedNodes(graphData.nodes || []);
+        setLastSavedEdges(graphData.edges || []);
       }
     }
-  }, [selectedProject, selectedGraph, setNodes, setEdges]);
+  }, [selectedProject, selectedGraph, setNodes, setEdges, setLastSavedNodes, setLastSavedEdges]);
 
   const onConnect = useCallback((params) => {
     setEdges((eds) => addEdge({
@@ -758,7 +843,7 @@ const IntegrationLevelContent = () => {
                       <p><strong>Description:</strong></p>
                       <div className="description-content">
                         {selectedNode.data.description ? (
-                          <MDEditor.Markdown source={selectedNode.data.description} />
+                          <MarkdownWithKaTeX source={selectedNode.data.description} />
                         ) : (
                           <p className="no-description">No description</p>
                         )}

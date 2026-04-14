@@ -6,6 +6,14 @@ This document provides detailed information about the Practice Level API endpoin
 
 All API endpoints are prefixed with `/api/practice`.
 
+## Important Note for AI Integration
+
+**To save tokens when using AI services, prefer using basic information APIs instead of full information APIs.**
+
+- Use `/projects/:userId/basic` instead of `/projects/:userId` when you only need project metadata
+- Basic information APIs return only essential fields (id, name, description, userId, createdAt, updatedAt) without the full practices and questions data
+- This significantly reduces token usage when AI needs to understand the project structure without detailed content
+
 ## Project Management API
 
 ### 1. Get All Projects
@@ -36,6 +44,64 @@ All API endpoints are prefixed with `/api/practice`.
   ]
 }
 ```
+
+### 1.1. Get All Projects for a User
+
+**Request Method:** GET
+**Endpoint:** `/projects/:userId`
+
+**Parameters:**
+- `userId` (path parameter): User ID
+
+**Response:**
+```json
+{
+  "projects": [
+    {
+      "id": "1234567890",
+      "name": "Math Practice",
+      "description": "Practice exercises for math",
+      "userId": "user123",
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z",
+      "practices": [
+        {
+          "id": "1",
+          "name": "Algebra Practice",
+          "description": "Practice algebra problems",
+          "questions": []
+        }
+      ]
+    }
+  ]
+}
+```
+
+### 1.2. Get All Projects for a User (Basic Information)
+
+**Request Method:** GET
+**Endpoint:** `/projects/:userId/basic`
+
+**Parameters:**
+- `userId` (path parameter): User ID
+
+**Response:**
+```json
+{
+  "projects": [
+    {
+      "id": "1234567890",
+      "name": "Math Practice",
+      "description": "Practice exercises for math",
+      "userId": "user123",
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z"
+    }
+  ]
+}
+```
+
+**Note:** This endpoint is recommended for AI integration to save tokens.
 
 ### 2. Get a Single Project
 
@@ -507,6 +573,39 @@ All API endpoints are prefixed with `/api/practice`.
 }
 ```
 
+### 6. Submit Answer and Get Feedback
+
+**Request Method:** POST
+**Endpoint:** `/question/:id/submit`
+
+**Request Body:**
+```json
+{
+  "answer": "B"
+}
+```
+
+**Parameters:**
+- `id` (path parameter): Question ID
+- `answer` (required): User's answer to the question
+
+**Response:**
+```json
+{
+  "questionId": "1",
+  "userAnswer": "B",
+  "isCorrect": true,
+  "feedback": "Correct! 2 + 2 equals 4."
+}
+```
+
+**Notes:**
+- For multiple-choice questions, the answer should be the option letter (A, B, C, D, etc.)
+- For fill-in-the-blank questions, the answer should be the text answer
+- For essay questions, the answer should be the essay text
+- Currently, essay questions return the user's answer as feedback; in the future, AI-generated feedback will be provided
+- The `isCorrect` field indicates whether the answer is correct (for essay questions, this is always true)
+
 ## Error Handling
 
 All API endpoints may return the following error responses:
@@ -641,9 +740,31 @@ curl -X POST http://localhost:3002/api/practice/practice/1/questions \
   -d '{"type": "essay", "question": "Explain the concept of gravity.", "feedback": "Your answer will be evaluated based on clarity and completeness."}'
 ```
 
+### Get All Projects for a User
+
+```bash
+curl -X GET http://localhost:3002/api/practice/projects/user123
+```
+
+### Get All Projects for a User (Basic Information)
+
+```bash
+curl -X GET http://localhost:3002/api/practice/projects/user123/basic
+```
+
+### Submit an Answer and Get Feedback
+
+```bash
+curl -X POST http://localhost:3002/api/practice/question/1/submit \
+  -H "Content-Type: application/json" \
+  -d '{"answer": "B"}'
+```
+
 ## Notes
 
 1. All API calls should ensure the user is logged in to verify permissions.
 2. Data is persisted in the `practice.json` file.
 3. For essay questions, the feedback is currently set to the user's answer itself, but this will be updated to use AI-generated feedback in the future.
 4. The `type` property for questions can be one of: "multiple-choice", "fill-blank", or "essay".
+5. To save tokens when using AI services, prefer using basic information APIs (`/projects/:userId/basic`) instead of full information APIs.
+6. The submit answer API (`/question/:id/submit`) is designed for future AI integration, where essay questions will receive AI-generated feedback.

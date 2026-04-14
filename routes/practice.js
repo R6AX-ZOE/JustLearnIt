@@ -46,6 +46,36 @@ router.get('/projects', (req, res) => {
   }
 });
 
+// 获取用户的所有项目
+router.get('/projects/:userId', (req, res) => {
+  try {
+    const { userId } = req.params;
+    const userProjects = practiceData.filter(project => project.userId === userId);
+    res.status(200).json({ projects: userProjects });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// 获取用户的所有项目（基本信息）
+router.get('/projects/:userId/basic', (req, res) => {
+  try {
+    const { userId } = req.params;
+    const userProjects = practiceData.filter(project => project.userId === userId);
+    const basicProjects = userProjects.map(project => ({
+      id: project.id,
+      name: project.name,
+      description: project.description,
+      userId: project.userId,
+      createdAt: project.createdAt,
+      updatedAt: project.updatedAt
+    }));
+    res.status(200).json({ projects: basicProjects });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 // 获取单个项目
 router.get('/project/:id', (req, res) => {
   try {
@@ -473,6 +503,67 @@ router.delete('/question/:id', (req, res) => {
     res.status(200).json({ 
       message: 'Question deleted successfully', 
       project: practiceData[projectIndex] 
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// 提交答案并获取反馈
+router.post('/question/:id/submit', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { answer } = req.body;
+    
+    if (!answer) {
+      return res.status(400).json({ message: 'Answer is required' });
+    }
+
+    let question = null;
+    
+    for (const project of practiceData) {
+      for (const practice of project.practices || []) {
+        const foundQuestion = practice.questions?.find(q => q.id === id);
+        if (foundQuestion) {
+          question = foundQuestion;
+          break;
+        }
+      }
+      if (question) break;
+    }
+    
+    if (!question) {
+      return res.status(404).json({ message: 'Question not found' });
+    }
+
+    let feedback = '';
+    let isCorrect = false;
+
+    if (question.type === 'multiple-choice') {
+      isCorrect = answer === question.correctAnswer;
+      if (isCorrect) {
+        feedback = 'Correct! ' + (question.feedback || 'Well done.');
+      } else {
+        feedback = 'Incorrect. ' + (question.feedback || 'Try again.');
+      }
+    } else if (question.type === 'fill-blank') {
+      isCorrect = answer.toLowerCase() === question.correctAnswer.toLowerCase();
+      if (isCorrect) {
+        feedback = 'Correct! ' + (question.feedback || 'Well done.');
+      } else {
+        feedback = 'Incorrect. ' + (question.feedback || 'Try again.');
+      }
+    } else if (question.type === 'essay') {
+      // 现阶段暂时把解答题反馈设置为用户回答本身，以后接入AI
+      feedback = 'Your answer: ' + answer;
+      isCorrect = true; // 解答题暂时标记为正确
+    }
+
+    res.status(200).json({ 
+      questionId: id,
+      userAnswer: answer,
+      isCorrect,
+      feedback
     });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });

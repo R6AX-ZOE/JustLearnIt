@@ -5,7 +5,7 @@
     "description": "tpd",
     "userId": "1775049679386",
     "createdAt": "2026-04-10T10:45:11.418Z",
-    "updatedAt": "2026-04-12T05:59:31.589Z",
+    "updatedAt": "2026-04-14T07:49:59.561Z",
     "graphs": [
       {
         "id": "1",
@@ -41,8 +41,8 @@
           {
             "id": "1775817949340",
             "position": {
-              "x": 239.9648006220841,
-              "y": 314.9354957542289
+              "x": 289.9648006220841,
+              "y": 269.9354957542289
             },
             "data": {
               "label": "another",
@@ -50,15 +50,16 @@
               "prerequisites": [],
               "applications": [
                 "1775817938595"
-              ]
+              ],
+              "description": "$E=mc^2$"
             },
             "className": "graph-node input selected",
             "width": 150,
             "height": 46,
             "selected": true,
             "positionAbsolute": {
-              "x": 239.9648006220841,
-              "y": 314.9354957542289
+              "x": 289.9648006220841,
+              "y": 269.9354957542289
             },
             "dragging": false
           }
@@ -154,6 +155,65 @@
             "id": "reactflow__edge-1775836350334-1775836353460"
           }
         ]
+      }
+    ]
+  },
+  {
+    "id": "1776148146643",
+    "name": "Some Project",
+    "description": "Some Description",
+    "userId": "1775485371136",
+    "createdAt": "2026-04-14T06:29:06.643Z",
+    "updatedAt": "2026-04-14T06:37:32.360Z",
+    "graphs": [
+      {
+        "id": "1",
+        "name": "Main Graph",
+        "description": "Default graph",
+        "nodes": [
+          {
+            "id": "1776148174936",
+            "position": {
+              "x": 100,
+              "y": 100
+            },
+            "data": {
+              "label": "enderman",
+              "type": "input",
+              "prerequisites": [],
+              "applications": [],
+              "description": "$$\\sum_{i=1}^{n} i = \\frac{n(n+1)}{2}$$"
+            },
+            "className": "graph-node input selected",
+            "width": 150,
+            "height": 46,
+            "selected": true,
+            "dragging": false
+          },
+          {
+            "id": "1776148196004",
+            "position": {
+              "x": 267.35716882901295,
+              "y": 97.82653027494788
+            },
+            "data": {
+              "label": "piglin",
+              "type": "input",
+              "prerequisites": [],
+              "applications": []
+            },
+            "className": "graph-node input ",
+            "width": 150,
+            "height": 46,
+            "selected": false,
+            "positionAbsolute": {
+              "x": 267.35716882901295,
+              "y": 97.82653027494788
+            },
+            "dragging": false
+          }
+        ],
+        "edges": []
       }
     ]
   }

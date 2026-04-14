@@ -1,7 +1,57 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import MDEditor from '@uiw/react-markdown-editor';
+import katex from 'katex';
+import 'katex/dist/katex.min.css';
 import '@uiw/react-markdown-editor/markdown-editor.css';
+
+// 自定义Markdown组件，支持KaTeX
+const MarkdownWithKaTeX = ({ source, style }) => {
+  const [processedSource, setProcessedSource] = useState('');
+  
+  useEffect(() => {
+    // 处理KaTeX公式
+    let processedText = source;
+    
+    // 处理块级公式 $$...$$
+    const blockFormulaRegex = /\$\$([\s\S]*?)\$\$/g;
+    processedText = processedText.replace(blockFormulaRegex, (match, formula) => {
+      try {
+        const html = katex.renderToString(formula.trim(), {
+          throwOnError: false,
+          displayMode: true
+        });
+        return `<div class="katex-display">${html}</div>`;
+      } catch (error) {
+        console.error('Error rendering KaTeX block formula:', error);
+        return match;
+      }
+    });
+    
+    // 处理行内公式 $...$
+    const inlineFormulaRegex = /\$([^\$]+)\$/g;
+    processedText = processedText.replace(inlineFormulaRegex, (match, formula) => {
+      try {
+        const html = katex.renderToString(formula.trim(), {
+          throwOnError: false,
+          displayMode: false
+        });
+        return `<span class="katex-inline">${html}</span>`;
+      } catch (error) {
+        console.error('Error rendering KaTeX inline formula:', error);
+        return match;
+      }
+    });
+    
+    setProcessedSource(processedText);
+  }, [source]);
+  
+  return (
+    <div style={style}>
+      <MDEditor.Markdown source={processedSource} />
+    </div>
+  );
+};
 
 const LearningProjects = () => {
   // 从localStorage获取用户信息
@@ -15,8 +65,10 @@ const LearningProjects = () => {
   const [showProjectForm, setShowProjectForm] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [showEditContentForm, setShowEditContentForm] = useState(false);
+  const [showEditDirectoryForm, setShowEditDirectoryForm] = useState(false);
   const [confirmAction, setConfirmAction] = useState(null);
   const [editingContent, setEditingContent] = useState(null);
+  const [editingDirectory, setEditingDirectory] = useState(null);
   const [newProject, setNewProject] = useState({ name: '', description: '' });
   const [newDirectory, setNewDirectory] = useState({ name: '', description: '', parentId: null });
   const [newContent, setNewContent] = useState({ title: '', content: '', images: [] });
@@ -26,6 +78,12 @@ const LearningProjects = () => {
   const [projectsCollapsed, setProjectsCollapsed] = useState(false);
   const [collapsedDirectories, setCollapsedDirectories] = useState(new Set());
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showCopyDialog, setShowCopyDialog] = useState(false);
+  const [copyTarget, setCopyTarget] = useState(null);
+  const [copyType, setCopyType] = useState(null);
+  const [selectedCopyProject, setSelectedCopyProject] = useState(null);
+  const [selectedCopyDestination, setSelectedCopyDestination] = useState(null);
+  const [expandedDirectories, setExpandedDirectories] = useState(new Set());
 
   useEffect(() => {
     fetchProjects();
@@ -126,31 +184,43 @@ const LearningProjects = () => {
       const response = await axios.post(`/api/learning/project/${selectedProject.id}/directory/${selectedDirectory.id}/content`, newContent);
       // 使用后端返回的项目数据，确保数据一致性
       const updatedProject = response.data.project;
-      setSelectedProject(updatedProject);
-      setProjects(projects.map(p => p.id === updatedProject.id ? updatedProject : p));
       
-      // 从更新后的项目中重新找到当前选中的目录
-      const findDirectory = (directories, directoryId) => {
-        for (const dir of directories) {
-          if (dir.id === directoryId) {
-            return dir;
+      if (updatedProject) {
+        setSelectedProject(updatedProject);
+        setProjects(projects.map(p => p.id === updatedProject.id ? updatedProject : p));
+        
+        // 从更新后的项目中重新找到当前选中的目录
+        const findDirectory = (directories, directoryId) => {
+          for (const dir of directories) {
+            if (dir.id === directoryId) {
+              return dir;
+            }
+            if (dir.subdirectories) {
+              const found = findDirectory(dir.subdirectories, directoryId);
+              if (found) return found;
+            }
           }
-          if (dir.subdirectories) {
-            const found = findDirectory(dir.subdirectories, directoryId);
-            if (found) return found;
-          }
+          return null;
+        };
+        
+        const updatedDirectory = findDirectory(updatedProject.structure.directories, selectedDirectory.id);
+        if (updatedDirectory) {
+          setSelectedDirectory(updatedDirectory);
         }
-        return null;
-      };
-      
-      const updatedDirectory = findDirectory(updatedProject.structure.directories, selectedDirectory.id);
-      if (updatedDirectory) {
-        setSelectedDirectory(updatedDirectory);
       }
       
+      // 重置表单状态
       setNewContent({ title: '', content: '', images: [] });
       setShowContentForm(false);
       setSelectedContent(null);
+      
+      // 滚动到内容列表
+      setTimeout(() => {
+        const contentList = document.querySelector('.content-list-section');
+        if (contentList) {
+          contentList.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 100);
     } catch (error) {
       console.error('Error adding content:', error);
     }
@@ -164,34 +234,86 @@ const LearningProjects = () => {
       const response = await axios.put(`/api/learning/project/${selectedProject.id}/directory/${selectedDirectory.id}/content/${editingContent.id}`, newContent);
       // 使用后端返回的项目数据，确保数据一致性
       const updatedProject = response.data.project;
-      setSelectedProject(updatedProject);
-      setProjects(projects.map(p => p.id === updatedProject.id ? updatedProject : p));
       
-      // 从更新后的项目中重新找到当前选中的目录
-      const findDirectory = (directories, directoryId) => {
-        for (const dir of directories) {
-          if (dir.id === directoryId) {
-            return dir;
+      if (updatedProject) {
+        setSelectedProject(updatedProject);
+        setProjects(projects.map(p => p.id === updatedProject.id ? updatedProject : p));
+        
+        // 从更新后的项目中重新找到当前选中的目录
+        const findDirectory = (directories, directoryId) => {
+          for (const dir of directories) {
+            if (dir.id === directoryId) {
+              return dir;
+            }
+            if (dir.subdirectories) {
+              const found = findDirectory(dir.subdirectories, directoryId);
+              if (found) return found;
+            }
           }
-          if (dir.subdirectories) {
-            const found = findDirectory(dir.subdirectories, directoryId);
-            if (found) return found;
-          }
+          return null;
+        };
+        
+        const updatedDirectory = findDirectory(updatedProject.structure.directories, selectedDirectory.id);
+        if (updatedDirectory) {
+          setSelectedDirectory(updatedDirectory);
         }
-        return null;
-      };
-      
-      const updatedDirectory = findDirectory(updatedProject.structure.directories, selectedDirectory.id);
-      if (updatedDirectory) {
-        setSelectedDirectory(updatedDirectory);
       }
       
+      // 重置表单状态
       setNewContent({ title: '', content: '', images: [] });
       setShowEditContentForm(false);
       setEditingContent(null);
       setSelectedContent(null);
+      
+      // 滚动到内容列表
+      setTimeout(() => {
+        const contentList = document.querySelector('.content-list-section');
+        if (contentList) {
+          contentList.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 100);
     } catch (error) {
       console.error('Error updating content:', error);
+    }
+  };
+
+  const handleUpdateDirectory = async (e) => {
+    e.preventDefault();
+    if (!selectedProject || !editingDirectory) return;
+
+    try {
+      const response = await axios.put(`/api/learning/project/${selectedProject.id}/directory/${editingDirectory.id}`, newDirectory);
+      // 使用后端返回的项目数据，确保数据一致性
+      const updatedProject = response.data.project;
+      setSelectedProject(updatedProject);
+      setProjects(projects.map(p => p.id === updatedProject.id ? updatedProject : p));
+      
+      // 如果当前选中的目录是被编辑的目录，更新它
+      if (selectedDirectory?.id === editingDirectory.id) {
+        const findDirectory = (directories, directoryId) => {
+          for (const dir of directories) {
+            if (dir.id === directoryId) {
+              return dir;
+            }
+            if (dir.subdirectories) {
+              const found = findDirectory(dir.subdirectories, directoryId);
+              if (found) return found;
+            }
+          }
+          return null;
+        };
+        
+        const updatedDirectory = findDirectory(updatedProject.structure.directories, editingDirectory.id);
+        if (updatedDirectory) {
+          setSelectedDirectory(updatedDirectory);
+        }
+      }
+      
+      setNewDirectory({ name: '', description: '', parentId: null });
+      setShowEditDirectoryForm(false);
+      setEditingDirectory(null);
+    } catch (error) {
+      console.error('Error updating directory:', error);
     }
   };
 
@@ -235,10 +357,34 @@ const LearningProjects = () => {
   // 处理右键菜单
   const handleContextMenu = (e, target, type) => {
     e.preventDefault();
+    
+    // 计算菜单位置，确保不超出页面范围
+    const menuWidth = 150; // 菜单宽度
+    const menuHeight = 160; // 菜单高度（4个菜单项，每个40px）
+    const windowWidth = window.innerWidth;
+    const windowHeight = window.innerHeight;
+    
+    let x = e.clientX;
+    let y = e.clientY;
+    
+    // 检查右侧边界
+    if (x + menuWidth > windowWidth) {
+      x = windowWidth - menuWidth - 10;
+    }
+    
+    // 检查底部边界
+    if (y + menuHeight > windowHeight) {
+      y = windowHeight - menuHeight - 10;
+    }
+    
+    // 确保x和y不小于0
+    x = Math.max(10, x);
+    y = Math.max(10, y);
+    
     setContextMenu({
       show: true,
-      x: e.clientX,
-      y: e.clientY,
+      x,
+      y,
       target,
       type
     });
@@ -247,10 +393,34 @@ const LearningProjects = () => {
   // 处理长按菜单（移动端和大屏）
   const handleLongPress = (e, target, type) => {
     e.preventDefault();
+    
+    // 计算菜单位置，确保不超出页面范围
+    const menuWidth = 150; // 菜单宽度
+    const menuHeight = 160; // 菜单高度（4个菜单项，每个40px）
+    const windowWidth = window.innerWidth;
+    const windowHeight = window.innerHeight;
+    
+    let x = e.clientX;
+    let y = e.clientY;
+    
+    // 检查右侧边界
+    if (x + menuWidth > windowWidth) {
+      x = windowWidth - menuWidth - 10;
+    }
+    
+    // 检查底部边界
+    if (y + menuHeight > windowHeight) {
+      y = windowHeight - menuHeight - 10;
+    }
+    
+    // 确保x和y不小于0
+    x = Math.max(10, x);
+    y = Math.max(10, y);
+    
     setContextMenu({
       show: true,
-      x: e.clientX,
-      y: e.clientY,
+      x,
+      y,
       target,
       type
     });
@@ -298,16 +468,47 @@ const LearningProjects = () => {
         setEditingContent(target);
         setNewContent({ title: target.title, content: target.content, images: target.images || [] });
         setShowEditContentForm(true);
+        // 滚动到编辑界面
+        setTimeout(() => {
+          const editor = document.querySelector('.markdown-editor');
+          if (editor) {
+            editor.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }, 100);
+      } else if (type === 'directory') {
+        // 设置编辑目录
+        setEditingDirectory(target);
+        setNewDirectory({ name: target.name, description: target.description || '', parentId: target.parentId });
+        setShowEditDirectoryForm(true);
+        // 滚动到编辑界面
+        setTimeout(() => {
+          const dialog = document.querySelector('.dialog');
+          if (dialog) {
+            dialog.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }, 100);
       } else {
-        // TODO: 实现其他类型的编辑功能
         console.log('Edit functionality not implemented yet for', type);
       }
     } else if (action === 'Export') {
       // TODO: 实现导出功能
       console.log('Export functionality not implemented yet');
     } else if (action === 'Copy') {
-      // TODO: 实现复制功能
-      console.log('Copy functionality not implemented yet');
+      // 处理复制功能
+      setCopyTarget(target);
+      setCopyType(type);
+      // 设置默认复制项目为当前项目
+      setSelectedCopyProject(selectedProject);
+      // 设置默认复制目标为当前位置
+      if (type === 'content' && selectedDirectory) {
+        setSelectedCopyDestination(selectedDirectory);
+      } else if (type === 'directory' && selectedProject) {
+        // 对于目录，默认目标为根目录
+        setSelectedCopyDestination({ id: null, name: 'Root', isRoot: true });
+      }
+      // 重置展开的目录
+      setExpandedDirectories(new Set());
+      setShowCopyDialog(true);
     }
     
     closeContextMenu();
@@ -335,81 +536,217 @@ const LearningProjects = () => {
           alert('Failed to delete project');
         }
       } else if (type === 'directory') {
-        if (!selectedProject) {
-          alert('Please select a project first');
-          setShowConfirmDialog(false);
-          setConfirmAction(null);
-          return;
-        }
-        try {
-          console.log('Deleting directory with ID:', target.id);
-          console.log('From project with ID:', selectedProject.id);
-          const url = `/api/learning/project/${selectedProject.id}/directory/${target.id}`;
-          console.log('Request URL:', url);
-          const response = await axios.delete(url);
-          console.log('Delete response:', response.data);
-          
-          // 使用后端返回的项目数据，确保数据一致性
-          const updatedProject = response.data.project;
-          setSelectedProject(updatedProject);
-          setProjects(projects.map(p => p.id === updatedProject.id ? updatedProject : p));
-          
-          if (selectedDirectory?.id === target.id) {
-            setSelectedDirectory(null);
+          if (!selectedProject) {
+            alert('Please select a project first');
+            setShowConfirmDialog(false);
+            setConfirmAction(null);
+            return;
           }
-        } catch (error) {
-          console.error('Error deleting directory:', error);
-          console.error('Error response:', error.response?.data);
-          alert('Failed to delete directory');
-        }
-      } else if (type === 'content') {
-        if (!selectedProject || !selectedDirectory) {
-          alert('Please select a project and directory first');
-          setShowConfirmDialog(false);
-          setConfirmAction(null);
-          return;
-        }
-        try {
-          console.log('Deleting content with ID:', target.id);
-          const url = `/api/learning/project/${selectedProject.id}/directory/${selectedDirectory.id}/content/${target.id}`;
-          const response = await axios.delete(url);
-          
-          // 使用后端返回的项目数据，确保数据一致性
-          const updatedProject = response.data.project;
-          setSelectedProject(updatedProject);
-          setProjects(projects.map(p => p.id === updatedProject.id ? updatedProject : p));
-          
-          // 从更新后的项目中重新找到当前选中的目录
-          const findDirectory = (directories, directoryId) => {
-            for (const dir of directories) {
-              if (dir.id === directoryId) {
-                return dir;
-              }
-              if (dir.subdirectories) {
-                const found = findDirectory(dir.subdirectories, directoryId);
-                if (found) return found;
-              }
+          try {
+            console.log('Deleting directory with ID:', target.id);
+            console.log('From project with ID:', selectedProject.id);
+            const url = `/api/learning/project/${selectedProject.id}/directory/${target.id}`;
+            console.log('Request URL:', url);
+            await axios.delete(url);
+            console.log('Delete response: success');
+            
+            // 删除成功后重新获取项目数据
+            await fetchProjects();
+            
+            // 重新获取当前项目详情
+            const projectResponse = await axios.get(`/api/learning/project/${selectedProject.id}`);
+            setSelectedProject(projectResponse.data.project);
+            
+            if (selectedDirectory?.id === target.id) {
+              setSelectedDirectory(null);
             }
-            return null;
-          };
-          
-          const updatedDirectory = findDirectory(updatedProject.structure.directories, selectedDirectory.id);
-          if (updatedDirectory) {
-            setSelectedDirectory(updatedDirectory);
+          } catch (error) {
+            console.error('Error deleting directory:', error);
+            console.error('Error response:', error.response?.data);
+            alert('Failed to delete directory');
           }
-          
-          if (selectedContent?.id === target.id) {
-            setSelectedContent(null);
+      } else if (type === 'content') {
+          if (!selectedProject || !selectedDirectory) {
+            alert('Please select a project and directory first');
+            setShowConfirmDialog(false);
+            setConfirmAction(null);
+            return;
           }
-        } catch (error) {
-          console.error('Error deleting content:', error);
-          alert('Failed to delete content');
-        }
+          try {
+            console.log('Deleting content with ID:', target.id);
+            const url = `/api/learning/project/${selectedProject.id}/directory/${selectedDirectory.id}/content/${target.id}`;
+            await axios.delete(url);
+            
+            // 删除成功后重新获取项目数据
+            await fetchProjects();
+            
+            // 重新获取当前项目详情
+            const projectResponse = await axios.get(`/api/learning/project/${selectedProject.id}`);
+            setSelectedProject(projectResponse.data.project);
+            
+            // 重新找到当前选中的目录
+            const findDirectory = (directories, directoryId) => {
+              for (const dir of directories) {
+                if (dir.id === directoryId) {
+                  return dir;
+                }
+                if (dir.subdirectories) {
+                  const found = findDirectory(dir.subdirectories, directoryId);
+                  if (found) return found;
+                }
+              }
+              return null;
+            };
+            
+            const updatedProject = projectResponse.data.project;
+            const updatedDirectory = findDirectory(updatedProject.structure.directories, selectedDirectory.id);
+            if (updatedDirectory) {
+              setSelectedDirectory(updatedDirectory);
+            }
+            
+            if (selectedContent?.id === target.id) {
+              setSelectedContent(null);
+            }
+          } catch (error) {
+            console.error('Error deleting content:', error);
+            alert('Failed to delete content');
+          }
       }
     }
     
     setShowConfirmDialog(false);
     setConfirmAction(null);
+  };
+
+  const handleCopyAction = async () => {
+    if (!copyTarget || !copyType || !selectedCopyDestination || !selectedCopyProject) {
+      return;
+    }
+
+    try {
+      if (copyType === 'content') {
+        // 复制内容
+        const newContent = {
+          title: copyTarget.title,
+          content: copyTarget.content,
+          images: copyTarget.images || []
+        };
+
+        const targetDirectoryId = selectedCopyDestination.isRoot ? 
+          (selectedCopyProject.structure?.directories[0]?.id || null) : 
+          selectedCopyDestination.id;
+
+        if (!targetDirectoryId) {
+          alert('Please select a valid destination directory');
+          return;
+        }
+
+        const response = await axios.post(
+          `/api/learning/project/${selectedCopyProject.id}/directory/${targetDirectoryId}/content`,
+          newContent
+        );
+
+        console.log('Content copied successfully:', response.data);
+        
+        // 重新获取项目数据
+        await fetchProjects();
+        
+        // 如果目标项目是当前选中的项目，更新它
+        if (selectedProject?.id === selectedCopyProject.id) {
+          const projectResponse = await axios.get(`/api/learning/project/${selectedCopyProject.id}`);
+          setSelectedProject(projectResponse.data.project);
+
+          // 如果当前选中的目录是目标目录，更新它
+          if (selectedDirectory?.id === targetDirectoryId) {
+            const findDirectory = (directories, directoryId) => {
+              for (const dir of directories) {
+                if (dir.id === directoryId) {
+                  return dir;
+                }
+                if (dir.subdirectories) {
+                  const found = findDirectory(dir.subdirectories, directoryId);
+                  if (found) return found;
+                }
+              }
+              return null;
+            };
+            const updatedDirectory = findDirectory(projectResponse.data.project.structure.directories, targetDirectoryId);
+            if (updatedDirectory) {
+              setSelectedDirectory(updatedDirectory);
+            }
+          }
+        }
+
+      } else if (copyType === 'directory') {
+        // 复制目录（递归复制）
+        const copyDirectory = async (dir, parentId) => {
+          const newDirectory = {
+            name: dir.name,
+            description: dir.description,
+            parentId: parentId
+          };
+
+          const response = await axios.post(
+            `/api/learning/project/${selectedCopyProject.id}/directories`,
+            newDirectory
+          );
+
+          const createdDirectory = response.data.directory;
+
+          // 复制目录下的内容
+          if (dir.content && dir.content.length > 0) {
+            for (const content of dir.content) {
+              const newContent = {
+                title: content.title,
+                content: content.content,
+                images: content.images || []
+              };
+              await axios.post(
+                `/api/learning/project/${selectedCopyProject.id}/directory/${createdDirectory.id}/content`,
+                newContent
+              );
+            }
+          }
+
+          // 递归复制子目录
+          if (dir.subdirectories && dir.subdirectories.length > 0) {
+            for (const subdir of dir.subdirectories) {
+              await copyDirectory(subdir, createdDirectory.id);
+            }
+          }
+
+          return createdDirectory;
+        };
+
+        const parentId = selectedCopyDestination.isRoot ? null : selectedCopyDestination.id;
+        await copyDirectory(copyTarget, parentId);
+
+        console.log('Directory copied successfully');
+        
+        // 重新获取项目数据
+        await fetchProjects();
+        
+        // 如果目标项目是当前选中的项目，更新它
+        if (selectedProject?.id === selectedCopyProject.id) {
+          const projectResponse = await axios.get(`/api/learning/project/${selectedCopyProject.id}`);
+          setSelectedProject(projectResponse.data.project);
+        }
+      }
+
+      // 关闭复制对话框
+      setShowCopyDialog(false);
+      setCopyTarget(null);
+      setCopyType(null);
+      setSelectedCopyProject(null);
+      setSelectedCopyDestination(null);
+      setExpandedDirectories(new Set());
+
+      alert(`${copyType === 'content' ? 'Content' : 'Directory'} copied successfully`);
+
+    } catch (error) {
+      console.error(`Error copying ${copyType}:`, error);
+      alert(`Failed to copy ${copyType}`);
+    }
   };
 
   const handleSelectProject = (project) => {
@@ -601,48 +938,49 @@ const LearningProjects = () => {
               <p className="project-stats">
                 Created: {new Date(selectedProject.createdAt).toLocaleDateString()}
               </p>
-              <p>Select a directory from the sidebar to view contents</p>
+              <h4>Root Directories</h4>
+              {selectedProject.structure?.directories && selectedProject.structure.directories.length > 0 ? (
+                <div className="root-directories-list">
+                  {selectedProject.structure.directories.map(directory => (
+                    <div 
+                      key={directory.id}
+                      className="root-directory-item"
+                      onClick={() => handleSelectDirectory(directory)}
+                      onContextMenu={(e) => handleContextMenu(e, directory, 'directory')}
+                      onTouchStart={(e) => {
+                        const timer = setTimeout(() => handleLongPress(e, directory, 'directory'), 500);
+                        return () => clearTimeout(timer);
+                      }}
+                    >
+                      <span className="folder-icon">📁</span>
+                      <span className="folder-name">{directory.name}</span>
+                      {directory.description && <span className="folder-description">- {directory.description}</span>}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p>No directories yet. Add a directory to get started.</p>
+              )}
             </div>
           ) : (
             <div className="content-section">
               <div className="content-header">
                 <h3>{selectedDirectory.name}</h3>
                 <button 
-                  onClick={() => setShowContentForm(true)} 
+                  onClick={() => {
+                    setShowContentForm(true);
+                    // 滚动到编辑界面
+                    setTimeout(() => {
+                      const editor = document.querySelector('.markdown-editor');
+                      if (editor) {
+                        editor.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                      }
+                    }, 100);
+                  }} 
                   className="add-btn"
                 >
                   Add Content
                 </button>
-              </div>
-
-              {/* 内容列表 */}
-              <div className="content-list-section">
-                <h4>Contents</h4>
-                {selectedDirectory.content && selectedDirectory.content.length > 0 ? (
-                  <div className="content-list">
-                    {selectedDirectory.content.map(content => (
-                      <div 
-                        key={content.id} 
-                        className={`content-item ${selectedContent?.id === content.id ? 'active' : ''}`}
-                        onClick={() => setSelectedContent(content)}
-                        onContextMenu={(e) => handleContextMenu(e, content, 'content')}
-                        onMouseDown={(e) => handleMouseDown(e, content, 'content')}
-                        onMouseUp={handleMouseUp}
-                        onTouchStart={(e) => {
-                          const timer = setTimeout(() => handleLongPress(e, content, 'content'), 500);
-                          return () => clearTimeout(timer);
-                        }}
-                      >
-                        <span className="content-icon">📄</span>
-                        <span className="content-title">{content.title}</span>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="no-content">
-                    <p>No content yet. Click "Add Content" to start creating.</p>
-                  </div>
-                )}
               </div>
 
               {/* Markdown编辑器/查看器 */}
@@ -751,22 +1089,110 @@ const LearningProjects = () => {
                       </div>
                     </form>
                   </div>
-                ) : selectedContent ? (
-                  <div className="markdown-viewer">
-                    <div className="markdown-header">
-                      <h4>{selectedContent.title}</h4>
-                      <button 
-                        className="btn btn-secondary btn-sm"
-                        onClick={() => setSelectedContent(null)}
-                      >
-                        Close
-                      </button>
+                ) : showEditDirectoryForm ? (
+                  <div className="dialog-overlay">
+                    <div className="dialog" style={{ width: '500px' }}>
+                      <div className="dialog-header">
+                        <h3>Edit Directory</h3>
+                        <button 
+                          className="close-btn"
+                          onClick={() => {
+                            setShowEditDirectoryForm(false);
+                            setEditingDirectory(null);
+                            setNewDirectory({ name: '', description: '', parentId: null });
+                          }}
+                        >
+                          ×
+                        </button>
+                      </div>
+                      <div className="dialog-content">
+                        <form onSubmit={handleUpdateDirectory}>
+                          <div className="form-group">
+                            <label>Directory Name *</label>
+                            <input 
+                              type="text" 
+                              value={newDirectory.name} 
+                              onChange={(e) => setNewDirectory({ ...newDirectory, name: e.target.value })} 
+                              required 
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label>Description (optional)</label>
+                            <textarea 
+                              value={newDirectory.description}
+                              onChange={(e) => setNewDirectory({ ...newDirectory, description: e.target.value })}
+                              rows={3}
+                            />
+                          </div>
+                          <div className="form-actions">
+                            <button type="submit" className="btn btn-primary">Update Directory</button>
+                            <button type="button" className="btn btn-secondary" onClick={() => {
+                              setShowEditDirectoryForm(false);
+                              setEditingDirectory(null);
+                              setNewDirectory({ name: '', description: '', parentId: null });
+                            }}>
+                              Cancel
+                            </button>
+                          </div>
+                        </form>
+                      </div>
                     </div>
-                    <MDEditor.Markdown source={selectedContent.content} style={{ whiteSpace: 'pre-wrap' }} />
+                  </div>
+                ) : null}
+                
+                {/* 浮动的添加内容按钮 */}
+                {selectedDirectory && !showContentForm && !showEditContentForm && (
+                  <button 
+                    onClick={() => {
+                      setShowContentForm(true);
+                      // 滚动到编辑界面
+                      setTimeout(() => {
+                        const editor = document.querySelector('.markdown-editor');
+                        if (editor) {
+                          editor.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }
+                      }, 100);
+                    }} 
+                    className="floating-add-btn"
+                  >
+                    +
+                  </button>
+                )}
+              </div>
+
+              {/* 内容列表 */}
+              <div className="content-list-section">
+                <h4>Contents</h4>
+                {selectedDirectory.content && selectedDirectory.content.length > 0 ? (
+                  <div className="content-list">
+                    {selectedDirectory.content.map(content => (
+                      <div 
+                        key={content.id} 
+                        className="content-item"
+                        onContextMenu={(e) => handleContextMenu(e, content, 'content')}
+                        onMouseDown={(e) => handleMouseDown(e, content, 'content')}
+                        onMouseUp={handleMouseUp}
+                        onTouchStart={(e) => {
+                          const timer = setTimeout(() => handleLongPress(e, content, 'content'), 500);
+                          return () => clearTimeout(timer);
+                        }}
+                      >
+                        <div className="content-item-header">
+                          <span className="content-icon">📄</span>
+                          <span className="content-title">{content.title}</span>
+                        </div>
+                        <div className="content-item-body">
+                          <MarkdownWithKaTeX 
+                            source={content.content} 
+                            style={{ whiteSpace: 'pre-wrap' }}
+                          />
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 ) : (
-                  <div className="no-selection">
-                    <p>Select a content to view or click "Add Content" to create new content</p>
+                  <div className="no-content">
+                    <p>No content yet. Click "Add Content" to start creating.</p>
                   </div>
                 )}
               </div>
@@ -1112,11 +1538,10 @@ const LearningProjects = () => {
 
         .content-item {
           display: flex;
-          align-items: center;
+          flex-direction: column;
           gap: 10px;
           padding: 12px;
           border-radius: 8px;
-          cursor: pointer;
           transition: all 0.2s ease;
           background: #f9f9f9;
           border: 1px solid #e0e0e0;
@@ -1140,6 +1565,55 @@ const LearningProjects = () => {
         .content-title {
           font-weight: 500;
           flex: 1;
+        }
+
+        .content-item-header {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          margin-bottom: 10px;
+          padding-bottom: 10px;
+          border-bottom: 1px solid #e0e0e0;
+        }
+
+        .content-item-body {
+          margin-top: 10px;
+          padding: 15px;
+          background: #f9f9f9;
+          border-radius: 6px;
+          border: 1px solid #e0e0e0;
+          width: 100%;
+          box-sizing: border-box;
+        }
+
+        .root-directories-list {
+          margin-top: 15px;
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+        }
+
+        .root-directory-item {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 12px;
+          border-radius: 8px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          background: #f9f9f9;
+          border: 1px solid #e0e0e0;
+        }
+
+        .root-directory-item:hover {
+          background: #f0f0f0;
+          border-color: #ccc;
+        }
+
+        .folder-description {
+          color: #666;
+          font-size: 14px;
+          margin-left: 5px;
         }
 
         .no-content {
@@ -1566,6 +2040,34 @@ const LearningProjects = () => {
           transform: translateY(-2px);
         }
 
+        /* 浮动的添加内容按钮 */
+        .floating-add-btn {
+          position: fixed;
+          bottom: 30px;
+          right: 30px;
+          width: 60px;
+          height: 60px;
+          border-radius: 50%;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
+          border: none;
+          font-size: 24px;
+          font-weight: bold;
+          cursor: pointer;
+          box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+          transition: all 0.3s ease;
+          z-index: 999;
+        }
+
+        .floating-add-btn:hover {
+          transform: scale(1.1);
+          box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+        }
+
+        .floating-add-btn:active {
+          transform: scale(0.95);
+        }
+
         @media (max-width: 768px) {
           .learning-content {
             grid-template-columns: 1fr;
@@ -1613,6 +2115,50 @@ const LearningProjects = () => {
             flex-direction: column;
             align-items: flex-start;
           }
+        }
+
+        /* 复制对话框样式 */
+        .directory-selector {
+          margin: 20px 0;
+        }
+
+        .directory-selector h4 {
+          margin: 0 0 10px 0;
+          color: #666;
+          font-size: 16px;
+        }
+
+        .directory-tree {
+          border: 1px solid #e0e0e0;
+          border-radius: 6px;
+          max-height: 300px;
+          overflow-y: auto;
+          padding: 10px;
+          background: #f9f9f9;
+        }
+
+        .directory-tree-item {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 8px 10px;
+          border-radius: 4px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          user-select: none;
+        }
+
+        .directory-tree-item:hover {
+          background: #f0f0f0;
+        }
+
+        .directory-tree-item.selected {
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
+        }
+
+        .directory-tree-node {
+          margin: 4px 0;
         }
       `}</style>
 
@@ -1698,6 +2244,157 @@ const LearningProjects = () => {
                   onClick={() => {
                     setShowConfirmDialog(false);
                     setConfirmAction(null);
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 复制确认对话框 */}
+      {showCopyDialog && copyTarget && projects.length > 0 && (
+        <div className="dialog-overlay">
+          <div className="dialog" style={{ width: '500px' }}>
+            <div className="dialog-header">
+              <h3>Copy {copyType === 'content' ? 'Content' : 'Directory'}</h3>
+              <button 
+                className="close-btn"
+                onClick={() => {
+                  setShowCopyDialog(false);
+                  setCopyTarget(null);
+                  setCopyType(null);
+                  setSelectedCopyProject(null);
+                  setSelectedCopyDestination(null);
+                  setExpandedDirectories(new Set());
+                }}
+              >
+                ×
+              </button>
+            </div>
+            <div className="dialog-content">
+              <p>Select destination for copying {copyType === 'content' ? `"${copyTarget.title}"` : `"${copyTarget.name}"`}</p>
+              
+              {/* 项目选择器 */}
+              <div className="project-selector" style={{ marginBottom: '20px' }}>
+                <h4>Project</h4>
+                <select 
+                  value={selectedCopyProject?.id || ''}
+                  onChange={(e) => {
+                    const projectId = e.target.value;
+                    const project = projects.find(p => p.id === projectId);
+                    setSelectedCopyProject(project);
+                    setSelectedCopyDestination(project ? { id: null, name: 'Root', isRoot: true } : null);
+                    setExpandedDirectories(new Set());
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    border: '1px solid #e0e0e0',
+                    borderRadius: '6px',
+                    fontSize: '14px'
+                  }}
+                >
+                  <option value="">Select a project</option>
+                  {projects.map(project => (
+                    <option key={project.id} value={project.id}>
+                      {project.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
+              {/* 目录结构选择器 */}
+              {selectedCopyProject && (
+                <div className="directory-selector">
+                  <h4>Destination</h4>
+                  <div className="directory-tree">
+                    {/* 根目录 */}
+                    <div 
+                      className={`directory-tree-item ${selectedCopyDestination?.isRoot ? 'selected' : ''}`}
+                      onClick={() => setSelectedCopyDestination({ id: null, name: 'Root', isRoot: true })}
+                    >
+                      <span className="folder-icon">📁</span>
+                      <span className="folder-name">Root</span>
+                    </div>
+                    
+                    {/* 递归渲染目录结构 */}
+                    {selectedCopyProject.structure?.directories && selectedCopyProject.structure.directories.map(directory => {
+                      const renderDirectory = (dir, level = 1) => {
+                        const isExpanded = expandedDirectories.has(dir.id);
+                        
+                        return (
+                          <div key={dir.id} className="directory-tree-node">
+                            <div 
+                              className={`directory-tree-item ${selectedCopyDestination?.id === dir.id ? 'selected' : ''}`}
+                              style={{ paddingLeft: `${level * 20}px` }}
+                            >
+                              {dir.subdirectories && dir.subdirectories.length > 0 && (
+                                <span 
+                                  className="expand-icon"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const newExpanded = new Set(expandedDirectories);
+                                    if (isExpanded) {
+                                      newExpanded.delete(dir.id);
+                                    } else {
+                                      newExpanded.add(dir.id);
+                                    }
+                                    setExpandedDirectories(newExpanded);
+                                  }}
+                                  style={{
+                                    marginRight: '5px',
+                                    cursor: 'pointer',
+                                    fontSize: '12px'
+                                  }}
+                                >
+                                  {isExpanded ? '▼' : '▶'}
+                                </span>
+                              )}
+                              <span 
+                                className="folder-icon"
+                                onClick={() => setSelectedCopyDestination(dir)}
+                              >
+                                📁
+                              </span>
+                              <span 
+                                className="folder-name"
+                                onClick={() => setSelectedCopyDestination(dir)}
+                              >
+                                {dir.name}
+                              </span>
+                            </div>
+                            {isExpanded && dir.subdirectories && dir.subdirectories.map(subdir => renderDirectory(subdir, level + 1))}
+                          </div>
+                        );
+                      };
+                      return renderDirectory(directory);
+                    })}
+                  </div>
+                </div>
+              )}
+              
+              <div className="form-actions">
+                <button 
+                  type="button" 
+                  className="btn btn-primary"
+                  onClick={handleCopyAction}
+                  disabled={!selectedCopyProject || !selectedCopyDestination}
+                >
+                  Copy
+                </button>
+                <button 
+                  type="button" 
+                  className="btn btn-secondary" 
+                  onClick={() => {
+                    setShowCopyDialog(false);
+                    setCopyTarget(null);
+                    setCopyType(null);
+                    setSelectedCopyProject(null);
+                    setSelectedCopyDestination(null);
+                    setExpandedDirectories(new Set());
                   }}
                 >
                   Cancel

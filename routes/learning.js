@@ -51,6 +51,25 @@ router.get('/projects/:userId', (req, res) => {
   }
 });
 
+// 获取用户的学习项目（基本信息）
+router.get('/projects/:userId/basic', (req, res) => {
+  try {
+    const { userId } = req.params;
+    const userProjects = learningProjects.filter(project => project.userId === userId);
+    const basicProjects = userProjects.map(project => ({
+      id: project.id,
+      name: project.name,
+      overview: project.overview,
+      userId: project.userId,
+      createdAt: project.createdAt,
+      updatedAt: project.updatedAt
+    }));
+    res.status(200).json({ projects: basicProjects });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 // 获取单个学习项目
 router.get('/project/:id', (req, res) => {
   try {
@@ -199,7 +218,73 @@ router.put('/project/:projectId/directory/:directoryId/content/:contentId', (req
     project.updatedAt = new Date();
     persistProjects();
 
-    res.status(200).json({ message: 'Content updated successfully', content: contentItem });
+    res.status(200).json({ message: 'Content updated successfully', content: contentItem, project: project });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// 更新目录
+router.put('/project/:projectId/directory/:directoryId', (req, res) => {
+  try {
+    const { projectId, directoryId } = req.params;
+    const { name, description, parentId } = req.body;
+
+    const project = learningProjects.find(project => project.id === projectId);
+    if (!project) {
+      return res.status(404).json({ message: 'Project not found' });
+    }
+
+    // 查找要更新的目录
+    const findDirectoryAndParent = (directories, dirId, parent = null) => {
+      for (const dir of directories) {
+        if (dir.id === dirId) {
+          return { directory: dir, parent: parent };
+        }
+        if (dir.subdirectories) {
+          const found = findDirectoryAndParent(dir.subdirectories, dirId, dir);
+          if (found) return found;
+        }
+      }
+      return null;
+    };
+
+    const { directory: directoryToUpdate, parent: oldParent } = findDirectoryAndParent(project.structure.directories, directoryId);
+    if (!directoryToUpdate) {
+      return res.status(404).json({ message: 'Directory not found' });
+    }
+
+    // 更新目录属性
+    if (name) directoryToUpdate.name = name;
+    if (description !== undefined) directoryToUpdate.description = description;
+
+    // 如果需要移动目录（修改parentId）
+    if (parentId !== undefined && parentId !== directoryToUpdate.parentId) {
+      // 从原父目录中移除
+      if (oldParent) {
+        oldParent.subdirectories = oldParent.subdirectories.filter(dir => dir.id !== directoryId);
+      } else {
+        project.structure.directories = project.structure.directories.filter(dir => dir.id !== directoryId);
+      }
+
+      // 添加到新父目录
+      directoryToUpdate.parentId = parentId;
+      if (parentId) {
+        const newParent = findDirectory(project.structure.directories, parentId);
+        if (newParent) {
+          newParent.subdirectories.push(directoryToUpdate);
+        } else {
+          return res.status(404).json({ message: 'New parent directory not found' });
+        }
+      } else {
+        project.structure.directories.push(directoryToUpdate);
+      }
+    }
+
+    project.updatedAt = new Date();
+    persistProjects();
+
+    res.status(200).json({ message: 'Directory updated successfully', directory: directoryToUpdate, project: project });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
@@ -292,10 +377,7 @@ router.delete('/project/:projectId/directory/:directoryId', (req, res) => {
       project.updatedAt = new Date();
       persistProjects();
       console.log('Directory deleted successfully');
-      res.status(200).json({ 
-        message: 'Directory deleted successfully',
-        project: project
-      });
+      res.status(200).json({ message: 'Directory deleted successfully' });
     } else {
       console.log('Error: Directory not found');
       res.status(404).json({ message: 'Directory not found' });
