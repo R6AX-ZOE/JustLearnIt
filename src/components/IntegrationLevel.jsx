@@ -1,70 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import ReactFlow, { 
-  Background, 
-  Controls, 
-  MiniMap, 
-  useNodesState, 
-  useEdgesState,
-  addEdge,
-  ConnectionLineType,
-  useReactFlow,
-  ReactFlowProvider
-} from 'reactflow';
-import 'reactflow/dist/style.css';
-import MDEditor from '@uiw/react-markdown-editor';
-import katex from 'katex';
-import 'katex/dist/katex.min.css';
-import '@uiw/react-markdown-editor/markdown-editor.css';
+import { ReactFlowProvider } from 'reactflow';
 import axios from 'axios';
-
-// 自定义Markdown组件，支持KaTeX
-const MarkdownWithKaTeX = ({ source, style }) => {
-  const [processedSource, setProcessedSource] = useState('');
-  
-  useEffect(() => {
-    // 处理KaTeX公式
-    let processedText = source;
-    
-    // 处理块级公式 $$...$$
-    const blockFormulaRegex = /\$\$([\s\S]*?)\$\$/g;
-    processedText = processedText.replace(blockFormulaRegex, (match, formula) => {
-      try {
-        const html = katex.renderToString(formula.trim(), {
-          throwOnError: false,
-          displayMode: true
-        });
-        return `<div class="katex-display">${html}</div>`;
-      } catch (error) {
-        console.error('Error rendering KaTeX block formula:', error);
-        return match;
-      }
-    });
-    
-    // 处理行内公式 $...$
-    const inlineFormulaRegex = /\$([^\$]+)\$/g;
-    processedText = processedText.replace(inlineFormulaRegex, (match, formula) => {
-      try {
-        const html = katex.renderToString(formula.trim(), {
-          throwOnError: false,
-          displayMode: false
-        });
-        return `<span class="katex-inline">${html}</span>`;
-      } catch (error) {
-        console.error('Error rendering KaTeX inline formula:', error);
-        return match;
-      }
-    });
-    
-    setProcessedSource(processedText);
-  }, [source]);
-  
-  return (
-    <div style={style}>
-      <MDEditor.Markdown source={processedSource} />
-    </div>
-  );
-};
+import GraphComponent from './integration/GraphComponent';
+import ManagementSection from './integration/ManagementSection';
+import Forms from './integration/Forms';
+import Dialog from './integration/Dialog';
+import styles from './integration/styles';
 
 const API_BASE = '/api/integration';
 
@@ -80,23 +22,20 @@ const IntegrationLevelContent = () => {
   const [projects, setProjects] = useState([]);
   const [selectedProject, setSelectedProject] = useState(null);
   const [selectedGraph, setSelectedGraph] = useState(null);
-  const [nodes, setNodes, onNodesChange] = useNodesState([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
-  const reactFlowInstance = useReactFlow();
-  const [externalLinks, setExternalLinks] = useState([]);
+  const [nodes, setNodes] = useState([]);
+  const [edges, setEdges] = useState([]);
   const [selectedNode, setSelectedNode] = useState(null);
   const [showNodeForm, setShowNodeForm] = useState(false);
   const [editingNode, setEditingNode] = useState(null);
   const [newNode, setNewNode] = useState({ title: '', type: 'input' });
-  const [showLinkForm, setShowLinkForm] = useState(false);
-  const [editingLink, setEditingLink] = useState(null);
-  const [newLink, setNewLink] = useState({ title: '', targetNodeId: '', nodeIds: [] });
   const [showRequisitionForm, setShowRequisitionForm] = useState(false);
   const [newRequisition, setNewRequisition] = useState({ projectId: '', graphId: '', nodeId: '' });
   const [showApplicationForm, setShowApplicationForm] = useState(false);
   const [newApplication, setNewApplication] = useState({ projectId: '', graphId: '', nodeId: '' });
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [edgeToDelete, setEdgeToDelete] = useState(null);
+  const [showExternalLinkDialog, setShowExternalLinkDialog] = useState(false);
+  const [selectedExternalLink, setSelectedExternalLink] = useState(null);
   const [showMarkdownEditor, setShowMarkdownEditor] = useState(false);
   const [nodeMarkdown, setNodeMarkdown] = useState('');
   const [showProjectForm, setShowProjectForm] = useState(false);
@@ -108,22 +47,41 @@ const IntegrationLevelContent = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [lastSavedNodes, setLastSavedNodes] = useState([]);
   const [lastSavedEdges, setLastSavedEdges] = useState([]);
+  const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, type: '', item: null });
+  const [dialog, setDialog] = useState({
+    visible: false,
+    title: '',
+    message: '',
+    onConfirm: null,
+    onCancel: null,
+    confirmText: 'Confirm',
+    cancelText: 'Cancel',
+    confirmVariant: 'primary'
+  });
+  const [editProjectData, setEditProjectData] = useState({ id: '', name: '', description: '' });
+  const [showQuestionLinkForm, setShowQuestionLinkForm] = useState(false);
+  const [newQuestionLink, setNewQuestionLink] = useState({ projectId: '', practiceId: '', questionIds: [], selectAll: false });
+  const [practiceProjects, setPracticeProjects] = useState([]);
 
   const [user, setUser] = useState(null);
 
   useEffect(() => {
     const userData = localStorage.getItem('user');
+    console.log('User data from localStorage:', userData);
     if (userData) {
-      setUser(JSON.parse(userData));
+      const parsedUser = JSON.parse(userData);
+      console.log('Parsed user:', parsedUser);
+      setUser(parsedUser);
     }
   }, []);
 
-  // 检查nodes或edges是否发生变化
+  // 检查nodes、edges或externalLinks是否发生变化
   const hasChanges = useCallback(() => {
+    // 检查长度变化
     if (lastSavedNodes.length !== nodes.length || lastSavedEdges.length !== edges.length) {
       return true;
     }
-    
+
     // 检查nodes是否变化
     for (let i = 0; i < nodes.length; i++) {
       const currentNode = nodes[i];
@@ -132,7 +90,7 @@ const IntegrationLevelContent = () => {
         return true;
       }
     }
-    
+
     // 检查edges是否变化
     for (let i = 0; i < edges.length; i++) {
       const currentEdge = edges[i];
@@ -141,13 +99,13 @@ const IntegrationLevelContent = () => {
         return true;
       }
     }
-    
+
     return false;
   }, [nodes, edges, lastSavedNodes, lastSavedEdges]);
 
   const saveGraphToServer = useCallback(async () => {
     if (!selectedProject || !selectedGraph || isSaving || !hasChanges()) return;
-    
+
     setIsSaving(true);
     try {
       const response = await axios.put(`${API_BASE}/project/${selectedProject.id}/graph/${selectedGraph.id}`, {
@@ -155,7 +113,7 @@ const IntegrationLevelContent = () => {
         edges
       });
       // 更新selectedProject状态，确保前端数据与服务器保持一致
-      setProjects(projects.map(project => 
+      setProjects(projects.map(project =>
         project.id === selectedProject.id ? response.data.project : project
       ));
       // 更新上次保存的nodes和edges
@@ -178,16 +136,43 @@ const IntegrationLevelContent = () => {
   useEffect(() => {
     if (user) {
       loadProjects();
+      loadPracticeProjects();
     }
   }, [user]);
+
+  useEffect(() => {
+    const handleClickOutside = () => {
+      closeContextMenu();
+    };
+
+    if (contextMenu.visible) {
+      document.addEventListener('click', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [contextMenu.visible]);
 
   const loadProjects = async () => {
     if (!user) return;
     try {
+      console.log('Loading integration projects...');
       const response = await axios.get(`${API_BASE}/projects/${user.id}`);
+      console.log('Integration projects loaded:', response.data.projects);
       setProjects(response.data.projects);
     } catch (error) {
       console.error('Error loading projects:', error);
+    }
+  };
+
+  const loadPracticeProjects = async () => {
+    if (!user) return;
+    try {
+      const response = await axios.get('/api/practice/projects/' + user.id);
+      setPracticeProjects(response.data.projects);
+    } catch (error) {
+      console.error('Error loading practice projects:', error);
     }
   };
 
@@ -229,7 +214,7 @@ const IntegrationLevelContent = () => {
         graphs: updatedProject.graphs
       });
 
-      setProjects(projects.map(project => 
+      setProjects(projects.map(project =>
         project.id === selectedProject.id ? response.data.project : project
       ));
       setNewGraph({ name: '', description: '' });
@@ -248,8 +233,8 @@ const IntegrationLevelContent = () => {
   const handleUpdateGraph = async () => {
     if (!selectedProject || !editingGraph || !newGraph.name) return;
     try {
-      const updatedGraphs = selectedProject.graphs.map(graph => 
-        graph.id === editingGraph.id 
+      const updatedGraphs = selectedProject.graphs.map(graph =>
+        graph.id === editingGraph.id
           ? { ...graph, name: newGraph.name, description: newGraph.description }
           : graph
       );
@@ -258,7 +243,7 @@ const IntegrationLevelContent = () => {
         graphs: updatedGraphs
       });
 
-      setProjects(projects.map(project => 
+      setProjects(projects.map(project =>
         project.id === selectedProject.id ? response.data.project : project
       ));
       setEditingGraph(null);
@@ -267,6 +252,267 @@ const IntegrationLevelContent = () => {
     } catch (error) {
       console.error('Error updating graph:', error);
     }
+  };
+
+  const handleProjectEdit = (project) => {
+    setContextMenu({ visible: false });
+    // 这里可以添加编辑项目的逻辑
+    setEditProjectData({ id: project.id, name: project.name, description: project.description });
+
+    openDialog({
+      title: 'Edit Project',
+      confirmText: 'Save',
+      cancelText: 'Cancel',
+      onConfirm: async () => {
+        try {
+          const response = await fetch(`/api/integration/project/${editProjectData.id}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              name: editProjectData.name,
+              description: editProjectData.description
+            })
+          });
+
+          if (!response.ok) {
+            throw new Error('Failed to update project');
+          }
+
+          const result = await response.json();
+
+          // 更新项目列表
+          setProjects(prevProjects => prevProjects.map(p => {
+            if (p.id === editProjectData.id) {
+              return result.project;
+            }
+            return p;
+          }));
+
+          // 如果当前选中的项目被编辑，更新选中状态
+          if (selectedProject && selectedProject.id === editProjectData.id) {
+            setSelectedProject(result.project);
+          }
+
+          openDialog({
+            title: 'Success',
+            message: result.message,
+            confirmText: 'OK',
+            onConfirm: closeDialog,
+            onCancel: closeDialog
+          });
+        } catch (error) {
+          openDialog({
+            title: 'Error',
+            message: 'Failed to update project. Please try again.',
+            confirmText: 'OK',
+            onConfirm: closeDialog,
+            onCancel: closeDialog
+          });
+          console.error('Error updating project:', error);
+        } finally {
+          closeDialog();
+        }
+      },
+      onCancel: closeDialog,
+      children: (
+        <div style={{ padding: '20px' }}>
+          <div style={{ marginBottom: '15px' }}>
+            <label style={{ display: 'block', marginBottom: '5px' }}>Project Name:</label>
+            <input
+              type="text"
+              value={editProjectData.name}
+              onChange={(e) => setEditProjectData(prev => ({ ...prev, name: e.target.value }))}
+              style={{
+                width: '100%',
+                padding: '8px',
+                borderRadius: '4px',
+                border: '1px solid #ddd'
+              }}
+            />
+          </div>
+          <div style={{ marginBottom: '15px' }}>
+            <label style={{ display: 'block', marginBottom: '5px' }}>Project Description:</label>
+            <textarea
+              value={editProjectData.description}
+              onChange={(e) => setEditProjectData(prev => ({ ...prev, description: e.target.value }))}
+              style={{
+                width: '100%',
+                padding: '8px',
+                borderRadius: '4px',
+                border: '1px solid #ddd',
+                minHeight: '80px'
+              }}
+            />
+          </div>
+        </div>
+      )
+    });
+  };
+
+  const handleProjectDelete = (project) => {
+    setContextMenu({ visible: false });
+    openDialog({
+      title: 'Confirm Delete',
+      message: `Are you sure you want to delete project "${project.name}"?`,
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      confirmVariant: 'danger',
+      onConfirm: async () => {
+        try {
+          const response = await fetch(`/api/integration/project/${project.id}`, {
+            method: 'DELETE',
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          });
+
+          if (!response.ok) {
+            throw new Error('Failed to delete project');
+          }
+
+          const result = await response.json();
+
+          // 更新项目列表
+          setProjects(prevProjects => prevProjects.filter(p => p.id !== project.id));
+
+          // 如果当前选中的项目被删除，重置选中状态
+          if (selectedProject && selectedProject.id === project.id) {
+            setSelectedProject(null);
+            setSelectedGraph(null);
+          }
+
+          openDialog({
+            title: 'Success',
+            message: result.message,
+            confirmText: 'OK',
+            onConfirm: closeDialog,
+            onCancel: closeDialog
+          });
+        } catch (error) {
+          openDialog({
+            title: 'Error',
+            message: 'Failed to delete project. Please try again.',
+            confirmText: 'OK',
+            onConfirm: closeDialog,
+            onCancel: closeDialog
+          });
+          console.error('Error deleting project:', error);
+        } finally {
+          closeDialog();
+        }
+      },
+      onCancel: closeDialog
+    });
+  };
+
+  const handleGraphEdit = (graph) => {
+    setContextMenu({ visible: false });
+    setEditingGraph(graph);
+    setNewGraph({ name: graph.name, description: graph.description });
+    setShowGraphEditForm(true);
+  };
+
+  const handleGraphDelete = (graph) => {
+    setContextMenu({ visible: false });
+    openDialog({
+      title: 'Confirm Delete',
+      message: `Are you sure you want to delete graph "${graph.name}"?`,
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      confirmVariant: 'danger',
+      onConfirm: async () => {
+        try {
+          const response = await fetch(`/api/integration/project/${selectedProject.id}/graph/${graph.id}`, {
+            method: 'DELETE',
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          });
+
+          if (!response.ok) {
+            throw new Error('Failed to delete graph');
+          }
+
+          const result = await response.json();
+
+          // 更新项目中的图形列表
+          setSelectedProject(prevProject => ({
+            ...prevProject,
+            graphs: prevProject.graphs.filter(g => g.id !== graph.id)
+          }));
+
+          // 更新项目列表中的对应项目
+          setProjects(prevProjects => prevProjects.map(p => {
+            if (p.id === selectedProject.id) {
+              return {
+                ...p,
+                graphs: p.graphs.filter(g => g.id !== graph.id)
+              };
+            }
+            return p;
+          }));
+
+          // 如果当前选中的图形被删除，重置选中状态
+          if (selectedGraph && selectedGraph.id === graph.id) {
+            setSelectedGraph(null);
+          }
+
+          openDialog({
+            title: 'Success',
+            message: result.message,
+            confirmText: 'OK',
+            onConfirm: closeDialog,
+            onCancel: closeDialog
+          });
+        } catch (error) {
+          openDialog({
+            title: 'Error',
+            message: 'Failed to delete graph. Please try again.',
+            confirmText: 'OK',
+            onConfirm: closeDialog,
+            onCancel: closeDialog
+          });
+          console.error('Error deleting graph:', error);
+        } finally {
+          closeDialog();
+        }
+      },
+      onCancel: closeDialog
+    });
+  };
+
+  const handleContextMenu = (e, type, item) => {
+    e.preventDefault();
+    setContextMenu({
+      visible: true,
+      x: e.clientX,
+      y: e.clientY,
+      type,
+      item
+    });
+  };
+
+  const closeContextMenu = () => {
+    setContextMenu({ visible: false, x: 0, y: 0, type: '', item: null });
+  };
+
+  const openDialog = (options) => {
+    setDialog({
+      visible: true,
+      title: options.title || '',
+      message: options.message || '',
+      onConfirm: options.onConfirm || null,
+      onCancel: options.onCancel || (() => setDialog({ ...dialog, visible: false })),
+      confirmText: options.confirmText || 'Confirm',
+      cancelText: options.cancelText || 'Cancel',
+      confirmVariant: options.confirmVariant || 'primary'
+    });
+  };
+
+  const closeDialog = () => {
+    setDialog({ ...dialog, visible: false });
   };
 
   useEffect(() => {
@@ -280,14 +526,7 @@ const IntegrationLevelContent = () => {
         setLastSavedEdges(graphData.edges || []);
       }
     }
-  }, [selectedProject, selectedGraph, setNodes, setEdges, setLastSavedNodes, setLastSavedEdges]);
-
-  const onConnect = useCallback((params) => {
-    setEdges((eds) => addEdge({
-      ...params,
-      className: 'graph-edge'
-    }, eds));
-  }, []);
+  }, [selectedProject, selectedGraph]);
 
   const handleDeleteEdge = (edgeId) => {
     setEdges(edges.filter(edge => edge.id !== edgeId));
@@ -319,11 +558,13 @@ const IntegrationLevelContent = () => {
     const newNodeObj = {
       id: newId,
       position: { x: 100, y: 100 },
-      data: { 
-        label: newNode.title, 
+      data: {
+        label: newNode.title,
         type: newNode.type,
         prerequisites: [],
-        applications: []
+        applications: [],
+        externalLinks: [],
+        questionLinks: []
       },
       className: `graph-node ${newNode.type}`
     };
@@ -340,8 +581,8 @@ const IntegrationLevelContent = () => {
 
   const handleUpdateNode = () => {
     if (editingNode) {
-      const updatedNodes = nodes.map(node => 
-        node.id === editingNode.id 
+      const updatedNodes = nodes.map(node =>
+        node.id === editingNode.id
           ? {
               ...node,
               data: { ...node.data, label: newNode.title, type: newNode.type },
@@ -362,53 +603,12 @@ const IntegrationLevelContent = () => {
   const handleDeleteNode = (nodeId) => {
     const updatedNodes = nodes.filter(node => node.id !== nodeId);
     const updatedEdges = edges.filter(edge => edge.source !== nodeId && edge.target !== nodeId);
-    const updatedLinks = externalLinks.map(link => ({
-      ...link,
-      nodeIds: link.nodeIds.filter(id => id !== nodeId)
-    })).filter(link => link.nodeIds.length > 0);
-    
+
     setNodes(updatedNodes);
     setEdges(updatedEdges);
-    setExternalLinks(updatedLinks);
     if (selectedNode && selectedNode.id === nodeId) {
       setSelectedNode(null);
     }
-  };
-
-  const handleAddLink = () => {
-    const newLinkObj = {
-      id: Date.now().toString(),
-      title: newLink.title,
-      targetNodeId: newLink.targetNodeId,
-      nodeIds: newLink.nodeIds
-    };
-    setExternalLinks([...externalLinks, newLinkObj]);
-    setNewLink({ title: '', targetNodeId: '', nodeIds: [] });
-    setShowLinkForm(false);
-  };
-
-  const handleEditLink = (link) => {
-    setEditingLink(link);
-    setNewLink({ title: link.title, targetNodeId: link.targetNodeId, nodeIds: [...link.nodeIds] });
-    setShowLinkForm(true);
-  };
-
-  const handleUpdateLink = () => {
-    if (editingLink) {
-      const updatedLinks = externalLinks.map(link => 
-        link.id === editingLink.id 
-          ? { ...link, title: newLink.title, targetNodeId: newLink.targetNodeId, nodeIds: newLink.nodeIds }
-          : link
-      );
-      setExternalLinks(updatedLinks);
-      setEditingLink(null);
-      setNewLink({ title: '', targetNodeId: '', nodeIds: [] });
-      setShowLinkForm(false);
-    }
-  };
-
-  const handleDeleteLink = (linkId) => {
-    setExternalLinks(externalLinks.filter(link => link.id !== linkId));
   };
 
   // 获取所有graph中的所有节点
@@ -430,10 +630,16 @@ const IntegrationLevelContent = () => {
       const allNodes = getAllNodes();
       const targetNode = allNodes.find(n => n.id === targetNodeId);
       if (!targetNode) {
-        alert('Target node not found');
+        openDialog({
+          title: 'Error',
+          message: 'Target node not found',
+          confirmText: 'OK',
+          onConfirm: closeDialog,
+          onCancel: closeDialog
+        });
         return;
       }
-      
+
       const updatedNodes = nodes.map(node => {
         if (node.id === selectedNode.id) {
           return {
@@ -454,7 +660,7 @@ const IntegrationLevelContent = () => {
         }
         return node;
       });
-      
+
       setNodes(updatedNodes);
       // 更新selectedNode为最新的节点数据
       if (selectedNode) {
@@ -472,7 +678,7 @@ const IntegrationLevelContent = () => {
     if (selectedNode) {
       const allNodes = getAllNodes();
       const targetNode = allNodes.find(n => n.id === requisitionId);
-      
+
       const updatedNodes = nodes.map(node => {
         if (node.id === selectedNode.id) {
           return {
@@ -493,7 +699,7 @@ const IntegrationLevelContent = () => {
         }
         return node;
       });
-      
+
       setNodes(updatedNodes);
       // 更新selectedNode为最新的节点数据
       if (selectedNode) {
@@ -511,10 +717,16 @@ const IntegrationLevelContent = () => {
       const allNodes = getAllNodes();
       const targetNode = allNodes.find(n => n.id === targetNodeId);
       if (!targetNode) {
-        alert('Target node not found');
+        openDialog({
+          title: 'Error',
+          message: 'Target node not found',
+          confirmText: 'OK',
+          onConfirm: closeDialog,
+          onCancel: closeDialog
+        });
         return;
       }
-      
+
       const updatedNodes = nodes.map(node => {
         if (node.id === selectedNode.id) {
           return {
@@ -535,7 +747,7 @@ const IntegrationLevelContent = () => {
         }
         return node;
       });
-      
+
       setNodes(updatedNodes);
       // 更新selectedNode为最新的节点数据
       if (selectedNode) {
@@ -553,7 +765,7 @@ const IntegrationLevelContent = () => {
     if (selectedNode) {
       const allNodes = getAllNodes();
       const targetNode = allNodes.find(n => n.id === applicationId);
-      
+
       const updatedNodes = nodes.map(node => {
         if (node.id === selectedNode.id) {
           return {
@@ -574,7 +786,7 @@ const IntegrationLevelContent = () => {
         }
         return node;
       });
-      
+
       setNodes(updatedNodes);
       // 更新selectedNode为最新的节点数据
       if (selectedNode) {
@@ -586,17 +798,265 @@ const IntegrationLevelContent = () => {
     }
   };
 
+  const handleAddExternalLink = async (link) => {
+    if (selectedNode) {
+      const updatedNodes = nodes.map(node => {
+        if (node.id === selectedNode.id) {
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              externalLinks: [...(node.data.externalLinks || []), link]
+            }
+          };
+        }
+        return node;
+      });
+      setNodes(updatedNodes);
+      // 更新selectedNode为最新的节点数据
+      if (selectedNode) {
+        const updatedSelectedNode = updatedNodes.find(node => node.id === selectedNode.id);
+        if (updatedSelectedNode) {
+          setSelectedNode(updatedSelectedNode);
+        }
+      }
+      // 更新selectedProject状态中的对应节点数据
+      if (selectedProject && selectedGraph) {
+        const updatedProjects = projects.map(project => {
+          if (project.id === selectedProject.id) {
+            return {
+              ...project,
+              graphs: project.graphs.map(graph => {
+                if (graph.id === selectedGraph.id) {
+                  return {
+                    ...graph,
+                    nodes: updatedNodes
+                  };
+                }
+                return graph;
+              })
+            };
+          }
+          return project;
+        });
+        setProjects(updatedProjects);
+        // 立即保存到服务器
+        try {
+          const response = await axios.put(`${API_BASE}/project/${selectedProject.id}/graph/${selectedGraph.id}`, {
+            nodes: updatedNodes,
+            edges
+          });
+          // 更新projects状态以确保与服务器保持一致
+          setProjects(projects.map(project =>
+            project.id === selectedProject.id ? response.data.project : project
+          ));
+        } catch (error) {
+          console.error('Error saving external link:', error);
+        }
+      }
+    }
+  };
+
+  const handleDeleteExternalLink = async (linkIndex) => {
+    if (selectedNode) {
+      const updatedNodes = nodes.map(node => {
+        if (node.id === selectedNode.id) {
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              externalLinks: (node.data.externalLinks || []).filter((_, index) => index !== linkIndex)
+            }
+          };
+        }
+        return node;
+      });
+      setNodes(updatedNodes);
+      // 更新selectedNode为最新的节点数据
+      if (selectedNode) {
+        const updatedSelectedNode = updatedNodes.find(node => node.id === selectedNode.id);
+        if (updatedSelectedNode) {
+          setSelectedNode(updatedSelectedNode);
+        }
+      }
+      // 更新selectedProject状态中的对应节点数据
+      if (selectedProject && selectedGraph) {
+        const updatedProjects = projects.map(project => {
+          if (project.id === selectedProject.id) {
+            return {
+              ...project,
+              graphs: project.graphs.map(graph => {
+                if (graph.id === selectedGraph.id) {
+                  return {
+                    ...graph,
+                    nodes: updatedNodes
+                  };
+                }
+                return graph;
+              })
+            };
+          }
+          return project;
+        });
+        setProjects(updatedProjects);
+        // 立即保存到服务器
+        try {
+          const response = await axios.put(`${API_BASE}/project/${selectedProject.id}/graph/${selectedGraph.id}`, {
+            nodes: updatedNodes,
+            edges
+          });
+          // 更新projects状态以确保与服务器保持一致
+          setProjects(projects.map(project =>
+            project.id === selectedProject.id ? response.data.project : project
+          ));
+        } catch (error) {
+          console.error('Error saving external link:', error);
+        }
+      }
+    }
+  };
+
+  const handleViewExternalLink = (link) => {
+    setSelectedExternalLink(link);
+    openDialog({
+      title: 'External Link Details',
+      message: `Content: ${link.contentName}`,
+      confirmText: 'OK',
+      onConfirm: closeDialog,
+      onCancel: closeDialog
+    });
+  };
+
+  const handleAddQuestionLink = async () => {
+    if (selectedNode) {
+      const questionIds = newQuestionLink.selectAll ?
+        newQuestionLink.practiceId ?
+          practiceProjects
+            .find(p => p.id === newQuestionLink.projectId)
+            ?.practices
+            ?.find(p => p.id === newQuestionLink.practiceId)
+            ?.questions
+            ?.map(q => q.id) || []
+        : []
+        : newQuestionLink.questionIds;
+
+      const updatedNodes = nodes.map(node => {
+        if (node.id === selectedNode.id) {
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              questionLinks: [...(node.data.questionLinks || []), ...questionIds]
+            }
+          };
+        }
+        return node;
+      });
+
+      const updatedSelectedNode = updatedNodes.find(node => node.id === selectedNode.id);
+
+      setNodes(updatedNodes);
+      setSelectedNode(updatedSelectedNode);
+
+      // 更新问题的关联节点
+      for (const questionId of questionIds) {
+        try {
+          // 获取问题当前的关联节点
+          const response = await axios.get(`/api/practice/question/${questionId}/nodes`);
+          const currentNodes = response.data.nodes || [];
+
+          // 添加当前节点到问题的关联节点列表
+          const updatedQuestionNodes = [...currentNodes, selectedNode.id];
+
+          // 更新问题的关联节点
+          await axios.put(`/api/practice/question/${questionId}/nodes`, {
+            nodes: updatedQuestionNodes
+          });
+        } catch (error) {
+          console.error(`Error updating question nodes for ${questionId}:`, error);
+        }
+      }
+
+      // 重新加载 practiceProjects 以更新 questionMap
+      loadPracticeProjects();
+
+      setNewQuestionLink({ projectId: '', practiceId: '', questionIds: [], selectAll: false });
+      setShowQuestionLinkForm(false);
+    }
+  };
+
+  const handleDeleteQuestionLink = async (questionId) => {
+    if (selectedNode) {
+      const updatedNodes = nodes.map(node => {
+        if (node.id === selectedNode.id) {
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              questionLinks: (node.data.questionLinks || []).filter(id => id !== questionId)
+            }
+          };
+        }
+        return node;
+      });
+
+      const updatedSelectedNode = updatedNodes.find(node => node.id === selectedNode.id);
+
+      setNodes(updatedNodes);
+      setSelectedNode(updatedSelectedNode);
+
+      // 从问题的关联节点中移除当前节点
+      try {
+        // 获取问题当前的关联节点
+        const response = await axios.get(`/api/practice/question/${questionId}/nodes`);
+        const currentNodes = response.data.nodes || [];
+
+        // 从问题的关联节点列表中移除当前节点
+        const updatedQuestionNodes = currentNodes.filter(nodeId => nodeId !== selectedNode.id);
+
+        // 更新问题的关联节点
+        await axios.put(`/api/practice/question/${questionId}/nodes`, {
+          nodes: updatedQuestionNodes
+        });
+      } catch (error) {
+        console.error(`Error updating question nodes for ${questionId}:`, error);
+      }
+
+      // 重新加载 practiceProjects 以更新 questionMap
+      loadPracticeProjects();
+    }
+  };
+
+  const handleViewQuestionLink = (questionId) => {
+    // 查找题目
+    let question = null;
+    for (const project of practiceProjects) {
+      for (const practice of project.practices || []) {
+        const foundQuestion = practice.questions?.find(q => q.id === questionId);
+        if (foundQuestion) {
+          question = foundQuestion;
+          break;
+        }
+      }
+      if (question) break;
+    }
+
+    if (question) {
+      openDialog({
+        title: 'Question Details',
+        message: `Question: ${question.question}`,
+        confirmText: 'OK',
+        onConfirm: closeDialog,
+        onCancel: closeDialog
+      });
+    }
+  };
+
   const handleNodeClickFromList = (nodeId) => {
     // 首先在当前nodes中查找
     let targetNode = nodes.find(n => n.id === nodeId);
-    
-    if (targetNode && reactFlowInstance) {
-      // 跳转到节点位置
-      reactFlowInstance.fitView({
-        nodes: [nodeId],
-        padding: 100
-      });
-      
+
+    if (targetNode) {
       // 选中节点并突出显示
       const updatedNodes = nodes.map(node => ({
         ...node,
@@ -609,7 +1069,7 @@ const IntegrationLevelContent = () => {
       // 查找该节点所在的project和graph
       let targetProject = null;
       let targetGraph = null;
-      
+
       for (const project of projects) {
         for (const graph of project.graphs || []) {
           if (graph.nodes && graph.nodes.some(node => node.id === nodeId)) {
@@ -621,7 +1081,7 @@ const IntegrationLevelContent = () => {
         }
         if (targetProject) break;
       }
-      
+
       if (targetProject && targetGraph && targetNode) {
         // 切换到目标project和graph
         setSelectedProject(targetProject);
@@ -632,10 +1092,6 @@ const IntegrationLevelContent = () => {
       }
     }
   };
-
-  const filteredExternalLinks = selectedNode 
-    ? externalLinks.filter(link => link.nodeIds.includes(selectedNode.id))
-    : [];
 
   return (
     <div className="integration-level">
@@ -652,7 +1108,7 @@ const IntegrationLevelContent = () => {
           </div>
         </div>
       </div>
-      
+
       <div className="project-selection">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
           <h3>Select Project</h3>
@@ -662,10 +1118,11 @@ const IntegrationLevelContent = () => {
         </div>
         <div className="projects-list">
           {projects.map(project => (
-            <div 
+            <div
               key={project.id}
               className={`project-item ${selectedProject?.id === project.id ? 'selected' : ''}`}
               onClick={() => handleProjectSelect(project)}
+              onContextMenu={(e) => handleContextMenu(e, 'project', project)}
             >
               <h4>{project.name}</h4>
               <p>{project.description}</p>
@@ -673,7 +1130,7 @@ const IntegrationLevelContent = () => {
           ))}
         </div>
       </div>
-      
+
       {selectedProject && (
         <div className="graph-selection">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
@@ -684,14 +1141,11 @@ const IntegrationLevelContent = () => {
           </div>
           <div className="graphs-list">
             {selectedProject.graphs?.map(graph => (
-              <div 
+              <div
                 key={graph.id}
                 className={`graph-item ${selectedGraph?.id === graph.id ? 'selected' : ''}`}
                 onClick={() => setSelectedGraph(graph)}
-                onContextMenu={(e) => {
-                  e.preventDefault();
-                  handleEditGraph(graph);
-                }}
+                onContextMenu={(e) => handleContextMenu(e, 'graph', graph)}
               >
                 <h4>{graph.name}</h4>
                 <p>{graph.description}</p>
@@ -700,7 +1154,7 @@ const IntegrationLevelContent = () => {
           </div>
         </div>
       )}
-      
+
       {selectedProject && selectedGraph && (
         <div className="integration-content">
           <div className="main-content">
@@ -717,1356 +1171,200 @@ const IntegrationLevelContent = () => {
                   )}
                 </div>
               </div>
-              <div className="graph-container">
-                <ReactFlow
-                  nodes={nodes}
-                  edges={edges}
-                  onNodesChange={onNodesChange}
-                  onEdgesChange={onEdgesChange}
-                  onConnect={onConnect}
-                  onNodeClick={handleNodeClick}
-                  onEdgeDoubleClick={handleEdgeDoubleClick}
-                  connectionLineType={ConnectionLineType.Bezier}
-                  minZoom={0.5}
-                  maxZoom={2}
-                >
-                  <Background variant="dots" gap={12} size={1} />
-                  <Controls />
-                  <MiniMap />
-                </ReactFlow>
-              </div>
-              
-              <div className="external-links-section">
-                <div className="section-header">
-                  <h3>External Links</h3>
-                  <button className="add-btn" onClick={() => setShowLinkForm(true)}>Add Link</button>
-                </div>
-                <div className="external-links-container">
-                  {filteredExternalLinks.length > 0 ? (
-                    filteredExternalLinks.map(link => (
-                      <div key={link.id} className="external-link-item">
-                        <div className="link-content">
-                          {link.targetNodeId ? (
-                            <button 
-                              className="node-link-btn"
-                              onClick={() => {
-                                const targetNode = nodes.find(node => node.id === link.targetNodeId);
-                                if (targetNode) {
-                                  alert(`Link to: ${targetNode.data.label}`);
-                                }
-                              }}
-                            >
-                              {link.title}
-                            </button>
-                          ) : (
-                            <span>{link.title}</span>
-                          )}
-                        </div>
-                        <div className="link-actions">
-                          <button className="action-btn" onClick={() => handleEditLink(link)}>Edit</button>
-                          <button className="action-btn delete-btn" onClick={() => handleDeleteLink(link.id)}>Delete</button>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="no-links">{selectedNode ? 'No external links for this node' : 'Select a node to view external links'}</p>
-                  )}
-                </div>
-              </div>
-            </div>
-            
-            <div className="management-section">
-              {selectedNode && (
-                <div className="prerequisites-section">
-                  <div className="section-header">
-                    <h3>Prerequisites</h3>
-                    <button 
-                      className="control-btn"
-                      onClick={() => {
-                        setNewRequisition({
-                          projectId: selectedProject?.id || '',
-                          graphId: selectedGraph?.id || '',
-                          nodeId: ''
-                        });
-                        setShowRequisitionForm(true);
-                      }}
-                    >
-                      Add
-                    </button>
-                  </div>
-                  <div className="prerequisites-list">
-                    {selectedNode?.data?.prerequisites?.length > 0 ? (
-                      selectedNode.data.prerequisites.map((prereqId, index) => {
-                        const prereqNode = getAllNodes().find(n => n.id === prereqId);
-                        return (
-                          <div key={index} className="prerequisite-item">
-                            <span 
-                              style={{ cursor: 'pointer', textDecoration: 'underline' }}
-                              onClick={() => handleNodeClickFromList(prereqId)}
-                            >
-                              {prereqNode?.data?.label || `Node ${prereqId}`}
-                            </span>
-                            <button 
-                              className="action-btn delete-btn"
-                              onClick={() => handleDeleteRequisition(prereqId)}
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        );
-                      })
-                    ) : (
-                      <p className="no-items">No prerequisites</p>
-                    )}
-                  </div>
-                </div>
-              )}
-              
-              {selectedNode && (
-                <div className="node-info-section">
-                  <div className="section-header">
-                    <h3>Node Info</h3>
-                    <button 
-                      className="control-btn"
-                      onClick={() => {
-                        setNodeMarkdown(selectedNode.data.description || '');
-                        setShowMarkdownEditor(true);
-                      }}
-                    >
-                      Edit Description
-                    </button>
-                  </div>
-                  <div className="node-info">
-                    <p><strong>Label:</strong> {selectedNode.data.label}</p>
-                    <p><strong>Type:</strong> {selectedNode.data.type}</p>
-                    <div className="node-description">
-                      <p><strong>Description:</strong></p>
-                      <div className="description-content">
-                        {selectedNode.data.description ? (
-                          <MarkdownWithKaTeX source={selectedNode.data.description} />
-                        ) : (
-                          <p className="no-description">No description</p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-              
-              {selectedNode && (
-                <div className="applications-section">
-                  <div className="section-header">
-                    <h3>Applications</h3>
-                    <button 
-                      className="control-btn"
-                      onClick={() => {
-                        setNewApplication({
-                          projectId: selectedProject?.id || '',
-                          graphId: selectedGraph?.id || '',
-                          nodeId: ''
-                        });
-                        setShowApplicationForm(true);
-                      }}
-                    >
-                      Add
-                    </button>
-                  </div>
-                  <div className="applications-list">
-                    {selectedNode?.data?.applications?.length > 0 ? (
-                      selectedNode.data.applications.map((appId, index) => {
-                        const appNode = getAllNodes().find(n => n.id === appId);
-                        return (
-                          <div key={index} className="application-item">
-                            <span 
-                              style={{ cursor: 'pointer', textDecoration: 'underline' }}
-                              onClick={() => handleNodeClickFromList(appId)}
-                            >
-                              {appNode?.data?.label || `Node ${appId}`}
-                            </span>
-                            <button 
-                              className="action-btn delete-btn"
-                              onClick={() => handleDeleteApplication(appId)}
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        );
-                      })
-                    ) : (
-                      <p className="no-items">No applications</p>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-      
-      {showProjectForm && (
-        <div className="dialog-overlay">
-          <div className="dialog">
-            <div className="dialog-header">
-              <h3>New Project</h3>
-              <button 
-                className="close-btn"
-                onClick={() => {
-                  setShowProjectForm(false);
-                  setNewProject({ name: '', description: '' });
-                }}
-              >
-                ×
-              </button>
-            </div>
-            <div className="dialog-content">
-              <form onSubmit={(e) => {
-                e.preventDefault();
-                handleCreateProject();
-              }}>
-                <div className="form-group">
-                  <label>Name *</label>
-                  <input 
-                    type="text" 
-                    value={newProject.name}
-                    onChange={(e) => setNewProject({ ...newProject, name: e.target.value })}
-                    required
-                    placeholder="Project name"
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Description</label>
-                  <textarea 
-                    value={newProject.description}
-                    onChange={(e) => setNewProject({ ...newProject, description: e.target.value })}
-                    placeholder="Project description"
-                  />
-                </div>
-                <div className="form-actions">
-                  <button type="submit" className="btn btn-primary">Create</button>
-                  <button type="button" className="btn btn-secondary" onClick={() => {
-                    setShowProjectForm(false);
-                    setNewProject({ name: '', description: '' });
-                  }}>
-                    Cancel
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showGraphForm && (
-        <div className="dialog-overlay">
-          <div className="dialog">
-            <div className="dialog-header">
-              <h3>New Graph</h3>
-              <button 
-                className="close-btn"
-                onClick={() => {
-                  setShowGraphForm(false);
-                  setNewGraph({ name: '', description: '' });
-                }}
-              >
-                ×
-              </button>
-            </div>
-            <div className="dialog-content">
-              <form onSubmit={(e) => {
-                e.preventDefault();
-                handleCreateGraph();
-              }}>
-                <div className="form-group">
-                  <label>Name *</label>
-                  <input 
-                    type="text" 
-                    value={newGraph.name}
-                    onChange={(e) => setNewGraph({ ...newGraph, name: e.target.value })}
-                    required
-                    placeholder="Graph name"
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Description</label>
-                  <textarea 
-                    value={newGraph.description}
-                    onChange={(e) => setNewGraph({ ...newGraph, description: e.target.value })}
-                    placeholder="Graph description"
-                  />
-                </div>
-                <div className="form-actions">
-                  <button type="submit" className="btn btn-primary">Create</button>
-                  <button type="button" className="btn btn-secondary" onClick={() => {
-                    setShowGraphForm(false);
-                    setNewGraph({ name: '', description: '' });
-                  }}>
-                    Cancel
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showGraphEditForm && (
-        <div className="dialog-overlay">
-          <div className="dialog">
-            <div className="dialog-header">
-              <h3>Edit Graph</h3>
-              <button 
-                className="close-btn"
-                onClick={() => {
-                  setShowGraphEditForm(false);
-                  setEditingGraph(null);
-                  setNewGraph({ name: '', description: '' });
-                }}
-              >
-                ×
-              </button>
-            </div>
-            <div className="dialog-content">
-              <form onSubmit={(e) => {
-                e.preventDefault();
-                handleUpdateGraph();
-              }}>
-                <div className="form-group">
-                  <label>Name *</label>
-                  <input 
-                    type="text" 
-                    value={newGraph.name}
-                    onChange={(e) => setNewGraph({ ...newGraph, name: e.target.value })}
-                    required
-                    placeholder="Graph name"
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Description</label>
-                  <textarea 
-                    value={newGraph.description}
-                    onChange={(e) => setNewGraph({ ...newGraph, description: e.target.value })}
-                    placeholder="Graph description"
-                  />
-                </div>
-                <div className="form-actions">
-                  <button type="submit" className="btn btn-primary">Update</button>
-                  <button type="button" className="btn btn-secondary" onClick={() => {
-                    setShowGraphEditForm(false);
-                    setEditingGraph(null);
-                    setNewGraph({ name: '', description: '' });
-                  }}>
-                    Cancel
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
-      
-      {showNodeForm && (
-        <div className="dialog-overlay">
-          <div className="dialog">
-            <div className="dialog-header">
-              <h3>{editingNode ? 'Edit Node' : 'Add Node'}</h3>
-              <button 
-                className="close-btn"
-                onClick={() => {
-                  setShowNodeForm(false);
-                  setEditingNode(null);
-                  setNewNode({ title: '', type: 'input' });
-                }}
-              >
-                ×
-              </button>
-            </div>
-            <div className="dialog-content">
-              <form onSubmit={(e) => {
-                e.preventDefault();
-                editingNode ? handleUpdateNode() : handleAddNode();
-              }}>
-                <div className="form-group">
-                  <label>Title *</label>
-                  <input 
-                    type="text" 
-                    value={newNode.title}
-                    onChange={(e) => setNewNode({ ...newNode, title: e.target.value })}
-                    required
-                    placeholder="Enter node title"
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Type</label>
-                  <input 
-                    type="text" 
-                    value={newNode.type}
-                    onChange={(e) => setNewNode({ ...newNode, type: e.target.value })}
-                    placeholder="Enter node type"
-                  />
-                </div>
-                <div className="form-actions">
-                  <button type="submit" className="btn btn-primary">{editingNode ? 'Update' : 'Add'}</button>
-                  <button type="button" className="btn btn-secondary" onClick={() => {
-                    setShowNodeForm(false);
-                    setEditingNode(null);
-                    setNewNode({ title: '', type: 'input' });
-                  }}>
-                    Cancel
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
-      
-      {showLinkForm && (
-        <div className="dialog-overlay">
-          <div className="dialog">
-            <div className="dialog-header">
-              <h3>{editingLink ? 'Edit External Link' : 'Add External Link'}</h3>
-              <button 
-                className="close-btn"
-                onClick={() => {
-                  setShowLinkForm(false);
-                  setEditingLink(null);
-                  setNewLink({ title: '', url: '', nodeIds: [] });
-                }}
-              >
-                ×
-              </button>
-            </div>
-            <div className="dialog-content">
-              <form onSubmit={(e) => {
-                e.preventDefault();
-                editingLink ? handleUpdateLink() : handleAddLink();
-              }}>
-                <div className="form-group">
-                  <label>Title *</label>
-                  <input 
-                    type="text" 
-                    value={newLink.title}
-                    onChange={(e) => setNewLink({ ...newLink, title: e.target.value })}
-                    required
-                    placeholder="Enter link title"
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Target Node</label>
-                  <select 
-                    value={newLink.targetNodeId}
-                    onChange={(e) => setNewLink({ ...newLink, targetNodeId: e.target.value })}
-                    required
-                  >
-                    <option value="">Select target node</option>
-                    {nodes.map(node => (
-                      <option key={node.id} value={node.id}>{node.data.label}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label>Apply to Nodes</label>
-                  <div className="node-selector">
-                    {nodes.map(node => (
-                      <label key={node.id} className="node-checkbox">
-                        <input 
-                          type="checkbox"
-                          checked={newLink.nodeIds.includes(node.id)}
-                          onChange={(e) => {
-                            const newNodeIds = e.target.checked 
-                              ? [...newLink.nodeIds, node.id]
-                              : newLink.nodeIds.filter(id => id !== node.id);
-                            setNewLink({ ...newLink, nodeIds: newNodeIds });
-                          }}
-                        />
-                        {node.data.label}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-                <div className="form-actions">
-                  <button type="submit" className="btn btn-primary">{editingLink ? 'Update' : 'Add'}</button>
-                  <button type="button" className="btn btn-secondary" onClick={() => {
-                    setShowLinkForm(false);
-                    setEditingLink(null);
-                    setNewLink({ title: '', url: '', nodeIds: [] });
-                  }}>
-                    Cancel
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
-      
-      {showRequisitionForm && (
-        <div className="dialog-overlay">
-          <div className="dialog">
-            <div className="dialog-header">
-              <h3>Add Requisition</h3>
-              <button 
-                className="close-btn"
-                onClick={() => {
-                  setShowRequisitionForm(false);
-                  setNewRequisition({ projectId: '', graphId: '', nodeId: '' });
-                }}
-              >
-                ×
-              </button>
-            </div>
-            <div className="dialog-content">
-              <form onSubmit={(e) => {
-                e.preventDefault();
-                handleAddRequisition();
-              }}>
-                <div className="form-group">
-                  <label>Project *</label>
-                  <select 
-                    value={newRequisition.projectId}
-                    onChange={(e) => {
-                      const projectId = e.target.value;
-                      setNewRequisition({ projectId, graphId: '', nodeId: '' });
-                    }}
-                    required
-                  >
-                    <option value="">Select project</option>
-                    {projects.map(project => (
-                      <option key={project.id} value={project.id}>{project.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label>Graph *</label>
-                  <select 
-                    value={newRequisition.graphId}
-                    onChange={(e) => {
-                      const graphId = e.target.value;
-                      setNewRequisition(prev => ({ ...prev, graphId, nodeId: '' }));
-                    }}
-                    required
-                    disabled={!newRequisition.projectId}
-                  >
-                    <option value="">Select graph</option>
-                    {projects.find(p => p.id === newRequisition.projectId)?.graphs?.map(graph => (
-                      <option key={graph.id} value={graph.id}>{graph.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label>Node *</label>
-                  <select 
-                    value={newRequisition.nodeId}
-                    onChange={(e) => {
-                      const nodeId = e.target.value;
-                      setNewRequisition(prev => ({ ...prev, nodeId }));
-                    }}
-                    required
-                    disabled={!newRequisition.graphId}
-                  >
-                    <option value="">Select node</option>
-                    {projects.find(p => p.id === newRequisition.projectId)?.graphs?.find(g => g.id === newRequisition.graphId)?.nodes?.filter(n => n.id !== selectedNode?.id).map(node => (
-                      <option key={node.id} value={node.id}>{node.data.label}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="form-actions">
-                  <button type="submit" className="btn btn-primary">Add</button>
-                  <button type="button" className="btn btn-secondary" onClick={() => {
-                    setShowRequisitionForm(false);
-                    setNewRequisition({ projectId: '', graphId: '', nodeId: '' });
-                  }}>
-                    Cancel
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
-      
-      {showApplicationForm && (
-        <div className="dialog-overlay">
-          <div className="dialog">
-            <div className="dialog-header">
-              <h3>Add Application</h3>
-              <button 
-                className="close-btn"
-                onClick={() => {
-                  setShowApplicationForm(false);
-                  setNewApplication({ projectId: '', graphId: '', nodeId: '' });
-                }}
-              >
-                ×
-              </button>
-            </div>
-            <div className="dialog-content">
-              <form onSubmit={(e) => {
-                e.preventDefault();
-                handleAddApplication();
-              }}>
-                <div className="form-group">
-                  <label>Project *</label>
-                  <select 
-                    value={newApplication.projectId}
-                    onChange={(e) => {
-                      const projectId = e.target.value;
-                      setNewApplication({ projectId, graphId: '', nodeId: '' });
-                    }}
-                    required
-                  >
-                    <option value="">Select project</option>
-                    {projects.map(project => (
-                      <option key={project.id} value={project.id}>{project.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label>Graph *</label>
-                  <select 
-                    value={newApplication.graphId}
-                    onChange={(e) => {
-                      const graphId = e.target.value;
-                      setNewApplication(prev => ({ ...prev, graphId, nodeId: '' }));
-                    }}
-                    required
-                    disabled={!newApplication.projectId}
-                  >
-                    <option value="">Select graph</option>
-                    {projects.find(p => p.id === newApplication.projectId)?.graphs?.map(graph => (
-                      <option key={graph.id} value={graph.id}>{graph.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label>Node *</label>
-                  <select 
-                    value={newApplication.nodeId}
-                    onChange={(e) => {
-                      const nodeId = e.target.value;
-                      setNewApplication(prev => ({ ...prev, nodeId }));
-                    }}
-                    required
-                    disabled={!newApplication.graphId}
-                  >
-                    <option value="">Select node</option>
-                    {projects.find(p => p.id === newApplication.projectId)?.graphs?.find(g => g.id === newApplication.graphId)?.nodes?.filter(n => n.id !== selectedNode?.id).map(node => (
-                      <option key={node.id} value={node.id}>{node.data.label}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="form-actions">
-                  <button type="submit" className="btn btn-primary">Add</button>
-                  <button type="button" className="btn btn-secondary" onClick={() => {
-                    setShowApplicationForm(false);
-                    setNewApplication({ projectId: '', graphId: '', nodeId: '' });
-                  }}>
-                    Cancel
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
-      
-      {showMarkdownEditor && selectedNode && (
-        <div className="dialog-overlay">
-          <div className="dialog markdown-dialog">
-            <div className="dialog-header">
-              <h3>Edit Node Description</h3>
-              <button 
-                className="close-btn"
-                onClick={() => {
-                  setShowMarkdownEditor(false);
-                  setNodeMarkdown('');
-                }}
-              >
-                ×
-              </button>
-            </div>
-            <div className="dialog-content">
-              <MDEditor
-                value={nodeMarkdown}
-                onChange={(value) => setNodeMarkdown(value)}
-                height={400}
+              <GraphComponent
+                nodes={nodes}
+                setNodes={setNodes}
+                edges={edges}
+                setEdges={setEdges}
+                selectedNode={selectedNode}
+                setSelectedNode={setSelectedNode}
+                onNodeClick={handleNodeClick}
+                onEdgeDoubleClick={handleEdgeDoubleClick}
+                setShowExternalLinkDialog={setShowExternalLinkDialog}
+                handleDeleteExternalLink={handleDeleteExternalLink}
+                handleViewExternalLink={handleViewExternalLink}
+                setShowQuestionLinkForm={setShowQuestionLinkForm}
+                handleDeleteQuestionLink={handleDeleteQuestionLink}
+                handleViewQuestionLink={handleViewQuestionLink}
+                practiceProjects={practiceProjects}
               />
-              <div className="form-actions">
-                <button 
-                  className="btn btn-primary"
-                  onClick={() => {
-                    const updatedNodes = nodes.map(node => 
-                      node.id === selectedNode.id 
-                        ? { 
-                            ...node, 
-                            data: { 
-                              ...node.data, 
-                              description: nodeMarkdown
-                            } 
-                          }
-                        : node
-                    );
-                    setNodes(updatedNodes);
-                    // 更新selectedNode为最新的节点数据
-                    if (selectedNode) {
-                      const updatedSelectedNode = updatedNodes.find(node => node.id === selectedNode.id);
-                      if (updatedSelectedNode) {
-                        setSelectedNode(updatedSelectedNode);
-                      }
-                    }
-                    setShowMarkdownEditor(false);
-                    setNodeMarkdown('');
-                  }}
-                >
-                  Save
-                </button>
-                <button 
-                  className="btn btn-secondary"
-                  onClick={() => {
-                    setShowMarkdownEditor(false);
-                    setNodeMarkdown('');
-                  }}
-                >
-                  Cancel
-                </button>
-              </div>
             </div>
+
+            <ManagementSection
+              selectedNode={selectedNode}
+              selectedProject={selectedProject}
+              selectedGraph={selectedGraph}
+              setShowRequisitionForm={setShowRequisitionForm}
+              setNewRequisition={setNewRequisition}
+              handleDeleteRequisition={handleDeleteRequisition}
+              handleNodeClickFromList={handleNodeClickFromList}
+              setShowMarkdownEditor={setShowMarkdownEditor}
+              setNodeMarkdown={setNodeMarkdown}
+              setShowApplicationForm={setShowApplicationForm}
+              setNewApplication={setNewApplication}
+              handleDeleteApplication={handleDeleteApplication}
+              getAllNodes={getAllNodes}
+            />
           </div>
         </div>
       )}
-      
-      {showDeleteConfirm && (
-        <div className="dialog-overlay">
-          <div className="dialog">
-            <div className="dialog-header">
-              <h3>Confirm Deletion</h3>
-              <button 
-                className="close-btn"
-                onClick={() => {
-                  setShowDeleteConfirm(false);
-                  setEdgeToDelete(null);
+
+      <Forms
+              showProjectForm={showProjectForm}
+              setShowProjectForm={setShowProjectForm}
+              newProject={newProject}
+              setNewProject={setNewProject}
+              handleCreateProject={handleCreateProject}
+              showGraphForm={showGraphForm}
+              setShowGraphForm={setShowGraphForm}
+              newGraph={newGraph}
+              setNewGraph={setNewGraph}
+              handleCreateGraph={handleCreateGraph}
+              showGraphEditForm={showGraphEditForm}
+              setShowGraphEditForm={setShowGraphEditForm}
+              editingGraph={editingGraph}
+              setEditingGraph={setEditingGraph}
+              handleUpdateGraph={handleUpdateGraph}
+              showNodeForm={showNodeForm}
+              setShowNodeForm={setShowNodeForm}
+              editingNode={editingNode}
+              setEditingNode={setEditingNode}
+              newNode={newNode}
+              setNewNode={setNewNode}
+              handleAddNode={handleAddNode}
+              handleUpdateNode={handleUpdateNode}
+              showRequisitionForm={showRequisitionForm}
+              setShowRequisitionForm={setShowRequisitionForm}
+              newRequisition={newRequisition}
+              setNewRequisition={setNewRequisition}
+              handleAddRequisition={handleAddRequisition}
+              showApplicationForm={showApplicationForm}
+              setShowApplicationForm={setShowApplicationForm}
+              newApplication={newApplication}
+              setNewApplication={setNewApplication}
+              handleAddApplication={handleAddApplication}
+              showMarkdownEditor={showMarkdownEditor}
+              setShowMarkdownEditor={setShowMarkdownEditor}
+              nodeMarkdown={nodeMarkdown}
+              setNodeMarkdown={setNodeMarkdown}
+              selectedNode={selectedNode}
+              nodes={nodes}
+              setNodes={setNodes}
+              setSelectedNode={setSelectedNode}
+              showDeleteConfirm={showDeleteConfirm}
+              setShowDeleteConfirm={setShowDeleteConfirm}
+              edgeToDelete={edgeToDelete}
+              setEdgeToDelete={setEdgeToDelete}
+              handleDeleteEdge={handleDeleteEdge}
+              projects={projects}
+              showExternalLinkDialog={showExternalLinkDialog}
+              setShowExternalLinkDialog={setShowExternalLinkDialog}
+              handleAddExternalLink={handleAddExternalLink}
+              showQuestionLinkForm={showQuestionLinkForm}
+              setShowQuestionLinkForm={setShowQuestionLinkForm}
+              newQuestionLink={newQuestionLink}
+              setNewQuestionLink={setNewQuestionLink}
+              handleAddQuestionLink={handleAddQuestionLink}
+              practiceProjects={practiceProjects}
+            />
+
+      <style>{styles}</style>
+
+      {contextMenu.visible && (
+        <div
+          className="context-menu"
+          style={{
+            position: 'fixed',
+            left: contextMenu.x,
+            top: contextMenu.y,
+            zIndex: 10000,
+            backgroundColor: 'white',
+            border: '1px solid #ddd',
+            borderRadius: '6px',
+            boxShadow: '0 2px 10px rgba(0,0,0,0.15)',
+            padding: '8px 0'
+          }}
+          onClick={closeContextMenu}
+        >
+          {contextMenu.type === 'project' && (
+            <>
+              <div
+                className="context-menu-item"
+                style={{
+                  padding: '10px 20px',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap'
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleProjectEdit(contextMenu.item);
                 }}
               >
-                ×
-              </button>
-            </div>
-            <div className="dialog-content">
-              <p>Are you sure you want to delete this edge?</p>
-              <div className="form-actions">
-                <button 
-                  type="button" 
-                  className="btn btn-danger"
-                  onClick={() => {
-                    if (edgeToDelete) {
-                      handleDeleteEdge(edgeToDelete.id);
-                    }
-                    setShowDeleteConfirm(false);
-                    setEdgeToDelete(null);
-                  }}
-                >
-                  Delete
-                </button>
-                <button 
-                  type="button" 
-                  className="btn btn-secondary"
-                  onClick={() => {
-                    setShowDeleteConfirm(false);
-                    setEdgeToDelete(null);
-                  }}
-                >
-                  Cancel
-                </button>
+                Edit
               </div>
-            </div>
-          </div>
+              <div
+                className="context-menu-item"
+                style={{
+                  padding: '10px 20px',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                  color: '#f44336'
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleProjectDelete(contextMenu.item);
+                }}
+              >
+                Delete
+              </div>
+            </>
+          )}
+          {contextMenu.type === 'graph' && (
+            <>
+              <div
+                className="context-menu-item"
+                style={{
+                  padding: '10px 20px',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap'
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleGraphEdit(contextMenu.item);
+                }}
+              >
+                Edit
+              </div>
+              <div
+                className="context-menu-item"
+                style={{
+                  padding: '10px 20px',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                  color: '#f44336'
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleGraphDelete(contextMenu.item);
+                }}
+              >
+                Delete
+              </div>
+            </>
+          )}
         </div>
       )}
-      
-      <style>{`
-        .integration-level {
-          padding: 20px;
-          max-width: 1400px;
-          margin: 0 auto;
-          min-height: 80vh;
-          background: #f8f9fa;
-        }
-        
-        .integration-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-          margin-bottom: 30px;
-          padding-bottom: 20px;
-          border-bottom: 2px solid #e0e0e0;
-        }
-        
-        .header-left h2 {
-          margin: 0 0 15px 0;
-          color: #333;
-          font-size: 28px;
-        }
-        
-        .navigation-links {
-          display: flex;
-          gap: 15px;
-        }
-        
-        .nav-link {
-          text-decoration: none;
-          color: #667eea;
-          font-weight: 500;
-          padding: 8px 16px;
-          border-radius: 6px;
-          transition: all 0.2s ease;
-        }
-        
-        .nav-link:hover {
-          background: #f0f0f0;
-          transform: translateY(-1px);
-        }
-        
-        .project-selection {
-          margin-bottom: 30px;
-        }
-        
-        .project-selection h3 {
-          margin-bottom: 15px;
-          color: #333;
-        }
-        
-        .projects-list {
-          display: flex;
-          gap: 20px;
-          overflow-x: auto;
-          padding: 10px 0;
-        }
-        
-        .project-item {
-          flex: 0 0 250px;
-          padding: 20px;
-          background: white;
-          border-radius: 12px;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-          cursor: pointer;
-          transition: all 0.2s ease;
-          user-select: none;
-        }
-        
-        .project-item:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        }
-        
-        .project-item.selected {
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          color: white;
-          box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-        }
-        
-        .project-item.selected h4,
-        .project-item.selected p {
-          color: white;
-        }
-        
-        .project-item h4 {
-          margin: 0 0 10px 0;
-          color: #333;
-        }
-        
-        .project-item p {
-          margin: 0;
-          color: #666;
-          font-size: 14px;
-        }
-        
-        .graph-selection h3 {
-          margin-bottom: 15px;
-          color: #333;
-        }
-        
-        .graphs-list {
-          display: flex;
-          gap: 20px;
-          overflow-x: auto;
-          padding: 10px 0;
-        }
-        
-        .graph-item {
-          flex: 0 0 250px;
-          padding: 20px;
-          background: white;
-          border-radius: 12px;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-          cursor: pointer;
-          transition: all 0.2s ease;
-          user-select: none;
-        }
-        
-        .graph-item:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        }
-        
-        .graph-item.selected {
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          color: white;
-          box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-        }
-        
-        .graph-item.selected h4,
-        .graph-item.selected p {
-          color: white;
-        }
-        
-        .graph-item h4 {
-          margin: 0 0 10px 0;
-          color: #333;
-        }
-        
-        .graph-item p {
-          margin: 0;
-          color: #666;
-          font-size: 14px;
-        }
-        
-        .main-content {
-          display: flex;
-          gap: 20px;
-          min-height: 600px;
-        }
-        
-        .graph-section {
-          flex: 1;
-          background: white;
-          border-radius: 12px;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-          overflow: hidden;
-        }
-        
-        .graph-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 15px 20px;
-          border-bottom: 1px solid #e0e0e0;
-          background: #f8f9fa;
-        }
-        
-        .graph-header h3 {
-          margin: 0;
-          color: #333;
-        }
-        
-        .graph-controls {
-          display: flex;
-          gap: 10px;
-        }
-        
-        .control-btn {
-          padding: 10px 20px;
-          border: 1px solid #ddd;
-          background: white;
-          border-radius: 6px;
-          cursor: pointer;
-          font-size: 14px;
-          transition: all 0.2s ease;
-        }
-        
-        .control-btn:hover {
-          background: #f0f0f0;
-          transform: translateY(-1px);
-          box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-        
-        .create-btn {
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          color: white;
-          border: none;
-          padding: 10px 20px;
-          border-radius: 6px;
-          cursor: pointer;
-          font-size: 14px;
-          font-weight: 600;
-          transition: all 0.3s ease;
-        }
-        
-        .create-btn:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-        }
-        
-        .control-btn.delete-btn {
-          background: #ffebee;
-          border-color: #f44336;
-          color: #c62828;
-        }
-        
-        .control-btn.delete-btn:hover {
-          background: #ffcdd2;
-        }
-        
-        .graph-container {
-          height: 500px;
-        }
-        
-        .management-section {
-          width: 350px;
-          display: flex;
-          flex-direction: column;
-          gap: 20px;
-        }
-        
-        .node-info-section,
-        .prerequisites-section,
-        .applications-section,
-        .external-links-section {
-          background: white;
-          border-radius: 12px;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-          overflow: hidden;
-        }
-        
-        .section-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 15px 20px;
-          border-bottom: 1px solid #e0e0e0;
-          background: #f8f9fa;
-        }
-        
-        .section-header h3 {
-          margin: 0;
-          color: #333;
-        }
-        
-        .node-info,
-        .prerequisites-list,
-        .applications-list,
-        .external-links-container {
-          padding: 20px;
-        }
-        
-        .node-info p {
-          margin: 5px 0;
-          color: #666;
-        }
-        
-        .node-description {
-          margin-top: 15px;
-        }
-        
-        .node-description p {
-          margin: 0 0 10px 0;
-        }
-        
-        .description-content {
-          background: #fafafa;
-          padding: 15px;
-          border-radius: 8px;
-        }
-        
-        .no-description {
-          color: #999;
-          font-style: italic;
-        }
-        
-        .prerequisite-item,
-        .application-item,
-        .external-link-item {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 8px 0;
-          border-bottom: 1px solid #f0f0f0;
-        }
-        
-        .prerequisite-item:last-child,
-        .application-item:last-child,
-        .external-link-item:last-child {
-          border-bottom: none;
-        }
-        
-        .node-link-btn {
-          background: none;
-          border: none;
-          color: #667eea;
-          cursor: pointer;
-          text-decoration: underline;
-          padding: 0;
-          font-size: inherit;
-        }
-        
-        .node-link-btn:hover {
-          color: #5a67d8;
-        }
-        
-        .action-btn {
-          padding: 4px 8px;
-          border: 1px solid #ddd;
-          background: white;
-          border-radius: 4px;
-          cursor: pointer;
-          font-size: 12px;
-          margin-left: 8px;
-        }
-        
-        .action-btn.delete-btn {
-          background: #ffebee;
-          border-color: #f44336;
-          color: #c62828;
-        }
-        
-        .no-items,
-        .no-links {
-          color: #999;
-          text-align: center;
-          margin: 0;
-        }
-        
-        .add-btn {
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          color: white;
-          border: none;
-          padding: 10px 20px;
-          border-radius: 6px;
-          cursor: pointer;
-          font-size: 14px;
-          font-weight: 600;
-          transition: all 0.3s ease;
-        }
-        
-        .add-btn:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-        }
-        
-        .dialog-overlay {
-          position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: rgba(0,0,0,0.5);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          z-index: 1000;
-        }
-        
-        .dialog {
-          background: white;
-          border-radius: 12px;
-          padding: 0;
-          min-width: 400px;
-          max-width: 90vw;
-          max-height: 90vh;
-          overflow: auto;
-        }
-        
-        .dialog.markdown-dialog {
-          width: 600px;
-        }
-        
-        .dialog-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 15px 20px;
-          border-bottom: 1px solid #e0e0e0;
-        }
-        
-        .dialog-header h3 {
-          margin: 0;
-          color: #333;
-        }
-        
-        .close-btn {
-          background: none;
-          border: none;
-          font-size: 28px;
-          cursor: pointer;
-          color: #666;
-          line-height: 1;
-        }
-        
-        .close-btn:hover {
-          color: #333;
-        }
-        
-        .dialog-content {
-          padding: 20px;
-        }
-        
-        .form-group {
-          margin-bottom: 20px;
-        }
-        
-        .form-group label {
-          display: block;
-          margin-bottom: 8px;
-          color: #333;
-          font-weight: 500;
-        }
-        
-        .form-group input,
-        .form-group select,
-        .form-group textarea {
-          width: 100%;
-          padding: 10px;
-          border: 1px solid #ddd;
-          border-radius: 6px;
-          font-size: 14px;
-        }
-        
-        .form-group textarea {
-          resize: vertical;
-          min-height: 100px;
-        }
-        
-        .node-selector {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 10px;
-        }
-        
-        .node-checkbox {
-          display: flex;
-          align-items: center;
-          gap: 5px;
-          cursor: pointer;
-        }
-        
-        .form-actions {
-          display: flex;
-          gap: 10px;
-          justify-content: flex-end;
-          margin-top: 20px;
-        }
-        
-        .btn {
-          padding: 10px 20px;
-          border: none;
-          border-radius: 6px;
-          cursor: pointer;
-          font-size: 14px;
-          font-weight: 500;
-        }
-        
-        .btn-primary {
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          color: white;
-          transition: all 0.3s ease;
-        }
-        
-        .btn-primary:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-        }
-        
-        .btn-secondary {
-          background: #f0f0f0;
-          color: #333;
-        }
-        
-        .btn-secondary:hover {
-          background: #e0e0e0;
-        }
-        
-        .btn-danger {
-          background: #f44336;
-          color: white;
-        }
-        
-        .btn-danger:hover {
-          background: #d32f2f;
-        }
-        
-        .graph-node {
-          border-radius: 8px;
-          padding: 10px 15px;
-          font-size: 14px;
-          font-weight: 500;
-          box-shadow: 0 2px 6px rgba(0,0,0,0.15);
-          cursor: grab;
-        }
-        
-        .graph-node.selected {
-          box-shadow: 0 0 0 3px #667eea, 0 2px 8px rgba(102, 126, 234, 0.4);
-        }
-        
-        .graph-node.input {
-          background: #e3f2fd;
-          border: 2px solid #2196f3;
-        }
-        
-        .graph-node.connection {
-          background: #fff3e0;
-          border: 2px solid #ff9800;
-        }
-        
-        .graph-edge {
-          stroke: #667eea;
-          stroke-width: 6;
-          stroke-linecap: round;
-          stroke-linejoin: round;
-        }
-        
-        .react-flow__edge-path {
-          stroke: #667eea;
-          stroke-width: 10;
-          stroke-opacity: 0.2;
-          stroke-linecap: round;
-          stroke-linejoin: round;
-        }
-        
-        .react-flow__edge-path:hover {
-          stroke-opacity: 0.4;
-        }
-        
-        @media (max-width: 1200px) {
-          .main-content {
-            flex-direction: column;
-          }
-          
-          .management-section {
-            width: 100%;
-            flex-direction: row;
-            flex-wrap: wrap;
-          }
-          
-          .node-info-section,
-          .prerequisites-section,
-          .applications-section,
-          .external-links-section {
-            flex: 1;
-            min-width: 300px;
-          }
-          
-          .graph-container {
-            height: 400px;
-          }
-        }
-        
-        @media (max-width: 768px) {
-          .integration-header {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 15px;
-          }
-          
-          .projects-list,
-          .graphs-list {
-            flex-direction: column;
-          }
-          
-          .project-item,
-          .graph-item {
-            flex: none;
-            width: 100%;
-          }
-        }
-      `}</style>
+
+      <Dialog
+        visible={dialog.visible}
+        title={dialog.title}
+        message={dialog.message}
+        onConfirm={dialog.onConfirm}
+        onCancel={dialog.onCancel}
+        confirmText={dialog.confirmText}
+        cancelText={dialog.cancelText}
+        confirmVariant={dialog.confirmVariant}
+      />
     </div>
   );
 };

@@ -11,6 +11,7 @@ build/
 # 用户数据文件
 users.json
 uploads/
+learningProjects.json
 
 # 日志文件
 *.log
@@ -23,5 +24,5 @@ uploads/
 .DS_Store
 Thumbs.db
 
-# 学习项目数据
-learningProjects.json
+# 样式规范文件
+DESIGN.md

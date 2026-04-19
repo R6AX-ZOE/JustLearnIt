@@ -67,7 +67,7 @@ const Home = () => {
         </section>
       </div>
 
-      <style jsx>{`
+      <style>{`
         .nav-menu {
           display: flex;
           gap: 20px;

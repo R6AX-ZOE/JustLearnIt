@@ -35,6 +35,16 @@ function App() {
               <LearningProjects />
             </ProtectedRoute>
           } />
+          <Route path="/input/:projectId/:directoryId/:contentId" element={
+            <ProtectedRoute>
+              <LearningProjects />
+            </ProtectedRoute>
+          } />
+          <Route path="/input/:projectId/:directoryId" element={
+            <ProtectedRoute>
+              <LearningProjects />
+            </ProtectedRoute>
+          } />
           <Route path="/integration" element={
             <ProtectedRoute>
               <IntegrationLevel />

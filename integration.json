@@ -5,7 +5,7 @@
     "description": "tpd",
     "userId": "1775049679386",
     "createdAt": "2026-04-10T10:45:11.418Z",
-    "updatedAt": "2026-04-14T07:49:59.561Z",
+    "updatedAt": "2026-04-18T15:23:33.343Z",
     "graphs": [
       {
         "id": "1",
@@ -15,8 +15,8 @@
           {
             "id": "1775817938595",
             "position": {
-              "x": 114.12470268449033,
-              "y": 106.75499114254137
+              "x": 113.12470268449033,
+              "y": 104.49609226913361
             },
             "data": {
               "label": "next",
@@ -26,23 +26,36 @@
                 "1775836350334"
               ],
               "applications": [],
-              "description": "# title\n\nThis is a description"
+              "description": "# title\n\nThis is a description",
+              "externalLinks": [
+                {
+                  "contentId": "1776242090360",
+                  "contentName": "Some Formula",
+                  "contentPath": "1776242090360",
+                  "projectId": "1776149786561",
+                  "directoryId": "1776165743285"
+                }
+              ],
+              "questionLinks": [
+                "1775973673262",
+                "1775973893267"
+              ]
             },
-            "className": "graph-node input ",
+            "className": "graph-node input selected",
             "width": 150,
             "height": 46,
-            "selected": false,
+            "selected": true,
             "positionAbsolute": {
-              "x": 114.12470268449033,
-              "y": 106.75499114254137
+              "x": 113.12470268449033,
+              "y": 104.49609226913361
             },
             "dragging": false
           },
           {
             "id": "1775817949340",
             "position": {
-              "x": 289.9648006220841,
-              "y": 269.9354957542289
+              "x": 291.9648006220841,
+              "y": 270.9354957542289
             },
             "data": {
               "label": "another",
@@ -53,13 +66,13 @@
               ],
               "description": "$E=mc^2$"
             },
-            "className": "graph-node input selected",
+            "className": "graph-node input ",
             "width": 150,
             "height": 46,
-            "selected": true,
+            "selected": false,
             "positionAbsolute": {
-              "x": 289.9648006220841,
-              "y": 269.9354957542289
+              "x": 291.9648006220841,
+              "y": 270.9354957542289
             },
             "dragging": false
           }
@@ -74,14 +87,8 @@
             "id": "reactflow__edge-1775817938595-1775817949340",
             "selected": false
           }
-        ]
-      },
-      {
-        "id": "1775824623692",
-        "name": "Another Graph",
-        "description": "as above",
-        "nodes": [],
-        "edges": []
+        ],
+        "externalLinks": []
       }
     ]
   },
@@ -91,7 +98,7 @@
     "description": "tppd",
     "userId": "1775049679386",
     "createdAt": "2026-04-10T10:47:22.615Z",
-    "updatedAt": "2026-04-11T15:33:16.933Z",
+    "updatedAt": "2026-04-14T10:39:20.139Z",
     "graphs": [
       {
         "id": "1",
@@ -112,10 +119,10 @@
                 "1775817938595"
               ]
             },
-            "className": "graph-node input selected",
+            "className": "graph-node input ",
             "width": 150,
             "height": 46,
-            "selected": true,
+            "selected": false,
             "positionAbsolute": {
               "x": 99.99999999999994,
               "y": 104.14869835499712
@@ -134,10 +141,10 @@
               "prerequisites": [],
               "applications": []
             },
-            "className": "graph-node input ",
+            "className": "graph-node input selected",
             "width": 150,
             "height": 46,
-            "selected": false,
+            "selected": true,
             "positionAbsolute": {
               "x": 275,
               "y": 224
@@ -164,7 +171,7 @@
     "description": "Some Description",
     "userId": "1775485371136",
     "createdAt": "2026-04-14T06:29:06.643Z",
-    "updatedAt": "2026-04-14T06:37:32.360Z",
+    "updatedAt": "2026-04-16T11:19:44.894Z",
     "graphs": [
       {
         "id": "1",
@@ -182,9 +189,18 @@
               "type": "input",
               "prerequisites": [],
               "applications": [],
-              "description": "$$\\sum_{i=1}^{n} i = \\frac{n(n+1)}{2}$$"
+              "description": "$$\\sum_{i=1}^{n} i = \\frac{n(n+1)}{2}$$",
+              "externalLinks": [
+                {
+                  "contentId": "1775619710705",
+                  "contentName": "td2",
+                  "contentPath": "1775619710705",
+                  "projectId": "1775587601487",
+                  "directoryId": "1775618245754"
+                }
+              ]
             },
-            "className": "graph-node input selected",
+            "className": "graph-node input ",
             "width": 150,
             "height": 46,
             "selected": true,
@@ -202,7 +218,7 @@
               "prerequisites": [],
               "applications": []
             },
-            "className": "graph-node input ",
+            "className": "graph-node input selected",
             "width": 150,
             "height": 46,
             "selected": false,

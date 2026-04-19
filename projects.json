@@ -142,7 +142,7 @@
     "overview": "tpd",
     "userId": "1775049679386",
     "createdAt": "2026-04-14T06:56:26.561Z",
-    "updatedAt": "2026-04-14T07:16:59.502Z",
+    "updatedAt": "2026-04-15T08:34:50.360Z",
     "structure": {
       "directories": [
         {
@@ -153,13 +153,37 @@
             {
               "id": "1776149828007",
               "title": "Some Formula",
-              "content": "# content\n\n$\\sum_{i=1}^{n} i = \\frac{n(n+1)}{2}$",
+              "content": "# content\n\n$$\\sum_{i=1}^{n} i = \\frac{n(n+1)}{2}$$\n\nSOme TExt HEre!",
               "images": [],
               "createdAt": "2026-04-14T06:57:08.007Z",
-              "updatedAt": "2026-04-14T07:16:59.502Z"
+              "updatedAt": "2026-04-14T11:21:39.413Z"
             }
           ],
           "subdirectories": []
+        },
+        {
+          "id": "1776165732468",
+          "name": "rt",
+          "description": "",
+          "content": [],
+          "subdirectories": [
+            {
+              "id": "1776165743285",
+              "name": "rrt",
+              "description": "",
+              "content": [
+                {
+                  "id": "1776242090360",
+                  "title": "Some Formula",
+                  "content": "# content\n\n$$\\sum_{i=1}^{n} i = \\frac{n(n+1)}{2}$$\n\nSOme TExt HEre!",
+                  "images": [],
+                  "createdAt": "2026-04-15T08:34:50.360Z",
+                  "updatedAt": "2026-04-15T08:34:50.360Z"
+                }
+              ],
+              "subdirectories": []
+            }
+          ]
         }
       ]
     }

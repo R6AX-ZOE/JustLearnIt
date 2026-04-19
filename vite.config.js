@@ -11,6 +11,8 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       }
-    }
+    },
+    allowedHosts: ['r6axzoe.qzz.io'],
+    historyApiFallback: true
   }
 })

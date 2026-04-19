@@ -417,7 +417,8 @@ All API endpoints are prefixed with `/api/practice`.
       "question": "What is 2 + 2?",
       "options": ["3", "4", "5", "6"],
       "correctAnswer": "B",
-      "feedback": "Correct! 2 + 2 equals 4."
+      "feedback": "Correct! 2 + 2 equals 4.",
+      "responseFunction": "return isCorrect ? '### Correct!\\n\\nYou got it right. The answer is ' + question.correctAnswer + '.\\n\\n**Explanation:**\n2 + 2 = 4' : '### Incorrect\\n\\nThe correct answer is ' + question.correctAnswer + '.\\n\\n**Try again!**'
     }
   ]
 }
@@ -440,7 +441,8 @@ All API endpoints are prefixed with `/api/practice`.
     "question": "What is 2 + 2?",
     "options": ["3", "4", "5", "6"],
     "correctAnswer": "B",
-    "feedback": "Correct! 2 + 2 equals 4."
+    "feedback": "Correct! 2 + 2 equals 4.",
+    "responseFunction": "return isCorrect ? '### Correct!\\n\\nYou got it right. The answer is ' + question.correctAnswer + '.\\n\\n**Explanation:**\n2 + 2 = 4' : '### Incorrect\\n\\nThe correct answer is ' + question.correctAnswer + '.\\n\\n**Try again!**'
   }
 }
 ```
@@ -457,7 +459,8 @@ All API endpoints are prefixed with `/api/practice`.
   "question": "What is 2 + 2?",
   "options": ["3", "4", "5", "6"],
   "correctAnswer": "B",
-  "feedback": "Correct! 2 + 2 equals 4."
+  "feedback": "Correct! 2 + 2 equals 4.",
+  "responseFunction": "return isCorrect ? '### Correct!\\n\\nYou got it right. The answer is ' + question.correctAnswer + '.\\n\\n**Explanation:**\n2 + 2 = 4' : '### Incorrect\\n\\nThe correct answer is ' + question.correctAnswer + '.\\n\\n**Try again!**'
 }
 ```
 
@@ -467,7 +470,8 @@ All API endpoints are prefixed with `/api/practice`.
   "type": "fill-blank",
   "question": "What is the capital of France?",
   "correctAnswer": "Paris",
-  "feedback": "Correct! The capital of France is Paris."
+  "feedback": "Correct! The capital of France is Paris.",
+  "responseFunction": "return isCorrect ? '### Correct!\\n\\nYou got it right. The capital of France is Paris.' : '### Incorrect\\n\\nThe correct answer is Paris.\\n\\n**Try again!**'
 }
 ```
 
@@ -476,7 +480,8 @@ All API endpoints are prefixed with `/api/practice`.
 {
   "type": "essay",
   "question": "Explain the concept of gravity.",
-  "feedback": "Your answer will be evaluated based on clarity and completeness."
+  "feedback": "Your answer will be evaluated based on clarity and completeness.",
+  "responseFunction": "return '### Your Answer\\n\\n' + answer + '\\n\\n**Feedback:**\nYour answer has been submitted. It will be evaluated based on clarity and completeness.'"
 }
 ```
 
@@ -486,7 +491,9 @@ All API endpoints are prefixed with `/api/practice`.
 - `question` (required): Question text
 - `options` (required for multiple-choice): Array of options
 - `correctAnswer` (required for multiple-choice and fill-blank): Correct answer
-- `feedback` (optional): Feedback for the question
+- `feedback` (optional): Default feedback for the question
+- `responseFunction` (optional): JavaScript function to generate dynamic feedback (supports Markdown and KaTeX)
+- `position` (optional): Position to insert the question (0-based index). If not provided, question is added to the end.
 
 **Response:**
 ```json
@@ -498,7 +505,8 @@ All API endpoints are prefixed with `/api/practice`.
     "question": "What is 2 + 2?",
     "options": ["3", "4", "5", "6"],
     "correctAnswer": "B",
-    "feedback": "Correct! 2 + 2 equals 4."
+    "feedback": "Correct! 2 + 2 equals 4.",
+    "responseFunction": "return isCorrect ? '### Correct!\\n\\nYou got it right. The answer is ' + question.correctAnswer + '.\\n\\n**Explanation:**\n2 + 2 = 4' : '### Incorrect\\n\\nThe correct answer is ' + question.correctAnswer + '.\\n\\n**Try again!**'
   }
 }
 ```
@@ -515,7 +523,8 @@ All API endpoints are prefixed with `/api/practice`.
   "question": "What is 3 + 3?",
   "options": ["5", "6", "7", "8"],
   "correctAnswer": "B",
-  "feedback": "Correct! 3 + 3 equals 6."
+  "feedback": "Correct! 3 + 3 equals 6.",
+  "responseFunction": "return isCorrect ? '### Correct!\\n\\nYou got it right. The answer is ' + question.correctAnswer + '.\\n\\n**Explanation:**\n3 + 3 = 6' : '### Incorrect\\n\\nThe correct answer is ' + question.correctAnswer + '.\\n\\n**Try again!**'
 }
 ```
 
@@ -526,6 +535,7 @@ All API endpoints are prefixed with `/api/practice`.
 - `options` (optional): Array of options
 - `correctAnswer` (optional): Correct answer
 - `feedback` (optional): Feedback for the question
+- `responseFunction` (optional): JavaScript function to generate dynamic feedback
 
 **Response:**
 ```json
@@ -537,7 +547,8 @@ All API endpoints are prefixed with `/api/practice`.
     "question": "What is 3 + 3?",
     "options": ["5", "6", "7", "8"],
     "correctAnswer": "B",
-    "feedback": "Correct! 3 + 3 equals 6."
+    "feedback": "Correct! 3 + 3 equals 6.",
+    "responseFunction": "return isCorrect ? '### Correct!\\n\\nYou got it right. The answer is ' + question.correctAnswer + '.\\n\\n**Explanation:**\n3 + 3 = 6' : '### Incorrect\\n\\nThe correct answer is ' + question.correctAnswer + '.\\n\\n**Try again!**'
   }
 }
 ```
@@ -595,7 +606,8 @@ All API endpoints are prefixed with `/api/practice`.
   "questionId": "1",
   "userAnswer": "B",
   "isCorrect": true,
-  "feedback": "Correct! 2 + 2 equals 4."
+  "feedback": "### Correct!\n\nYou got it right. The answer is B.\n\n**Explanation:**\n2 + 2 = 4",
+  "isMarkdown": true
 }
 ```
 
@@ -605,6 +617,8 @@ All API endpoints are prefixed with `/api/practice`.
 - For essay questions, the answer should be the essay text
 - Currently, essay questions return the user's answer as feedback; in the future, AI-generated feedback will be provided
 - The `isCorrect` field indicates whether the answer is correct (for essay questions, this is always true)
+- The `feedback` field can contain Markdown and KaTeX syntax, which should be rendered by the frontend
+- The `isMarkdown` field indicates that the feedback should be rendered as Markdown
 
 ## Error Handling
 
@@ -673,7 +687,8 @@ All API endpoints may return the following error responses:
   "question": "What is 2 + 2?",
   "options": ["3", "4", "5", "6"],
   "correctAnswer": "B",
-  "feedback": "Correct! 2 + 2 equals 4."
+  "feedback": "Correct! 2 + 2 equals 4.",
+  "responseFunction": "return isCorrect ? '### Correct!\\n\\nYou got it right. The answer is ' + question.correctAnswer + '.\\n\\n**Explanation:**\n2 + 2 = 4' : '### Incorrect\\n\\nThe correct answer is ' + question.correctAnswer + '.\\n\\n**Try again!**'
 }
 ```
 
@@ -684,7 +699,8 @@ All API endpoints may return the following error responses:
   "type": "fill-blank",
   "question": "What is the capital of France?",
   "correctAnswer": "Paris",
-  "feedback": "Correct! The capital of France is Paris."
+  "feedback": "Correct! The capital of France is Paris.",
+  "responseFunction": "return isCorrect ? '### Correct!\\n\\nYou got it right. The capital of France is Paris.' : '### Incorrect\\n\\nThe correct answer is Paris.\\n\\n**Try again!**'
 }
 ```
 
@@ -694,7 +710,8 @@ All API endpoints may return the following error responses:
   "id": "3",
   "type": "essay",
   "question": "Explain the concept of gravity.",
-  "feedback": "Your answer will be evaluated based on clarity and completeness."
+  "feedback": "Your answer will be evaluated based on clarity and completeness.",
+  "responseFunction": "return '### Your Answer\\n\\n' + answer + '\\n\\n**Feedback:**\nYour answer has been submitted. It will be evaluated based on clarity and completeness.'"
 }
 ```
 
@@ -716,12 +733,12 @@ curl -X POST http://localhost:3002/api/practice/project/1234567890/practices \
   -d '{"name": "Algebra Practice", "description": "Practice algebra problems"}'
 ```
 
-### Create a New Multiple Choice Question
+### Create a New Multiple Choice Question with Response Function
 
 ```bash
 curl -X POST http://localhost:3002/api/practice/practice/1/questions \
   -H "Content-Type: application/json" \
-  -d '{"type": "multiple-choice", "question": "What is 2 + 2?", "options": ["3", "4", "5", "6"], "correctAnswer": "B", "feedback": "Correct! 2 + 2 equals 4."}'
+  -d '{"type": "multiple-choice", "question": "What is 2 + 2?", "options": ["3", "4", "5", "6"], "correctAnswer": "B", "feedback": "Correct! 2 + 2 equals 4.", "responseFunction": "return isCorrect ? '### Correct!\\n\\nYou got it right. The answer is ' + question.correctAnswer + '.\\n\\n**Explanation:**\\n2 + 2 = 4' : '### Incorrect\\n\\nThe correct answer is ' + question.correctAnswer + '.\\n\\n**Try again!**'"}'
 ```
 
 ### Create a New Fill in the Blank Question
@@ -738,6 +755,14 @@ curl -X POST http://localhost:3002/api/practice/practice/1/questions \
 curl -X POST http://localhost:3002/api/practice/practice/1/questions \
   -H "Content-Type: application/json" \
   -d '{"type": "essay", "question": "Explain the concept of gravity.", "feedback": "Your answer will be evaluated based on clarity and completeness."}'
+```
+
+### Create a Question at Specific Position
+
+```bash
+curl -X POST http://localhost:3002/api/practice/practice/1/questions \
+  -H "Content-Type: application/json" \
+  -d '{"type": "multiple-choice", "question": "What is 1 + 1?", "options": ["1", "2", "3", "4"], "correctAnswer": "B", "feedback": "Correct! 1 + 1 equals 2.", "position": 0}'
 ```
 
 ### Get All Projects for a User
@@ -768,3 +793,6 @@ curl -X POST http://localhost:3002/api/practice/question/1/submit \
 4. The `type` property for questions can be one of: "multiple-choice", "fill-blank", or "essay".
 5. To save tokens when using AI services, prefer using basic information APIs (`/projects/:userId/basic`) instead of full information APIs.
 6. The submit answer API (`/question/:id/submit`) is designed for future AI integration, where essay questions will receive AI-generated feedback.
+7. The `position` parameter for creating questions allows inserting questions at specific positions in the list.
+8. The `responseFunction` parameter allows for dynamic feedback generation using JavaScript, supporting Markdown and KaTeX syntax.
+9. The feedback returned by the submit answer API is marked with `isMarkdown: true`, indicating it should be rendered as Markdown.

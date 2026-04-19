@@ -5,7 +5,7 @@
     "description": "tpd",
     "userId": "1775049679386",
     "createdAt": "2026-04-12T06:00:01.018Z",
-    "updatedAt": "2026-04-12T06:04:53.267Z",
+    "updatedAt": "2026-04-18T15:23:28.343Z",
     "practices": [
       {
         "id": "1775973616626",
@@ -18,17 +18,91 @@
             "question": "What is this?",
             "options": [],
             "correctAnswer": "Answer",
-            "feedback": "Some Feedback"
+            "feedback": "Some Feedback",
+            "nodes": [
+              "1775817938595",
+              "1775817949340",
+              "1775817938595"
+            ]
           },
           {
             "id": "1775973893267",
             "type": "multiple-choice",
-            "question": "Choose A",
+            "question": "Choose B",
             "options": [
               "A",
               "B",
               "C",
               "D"
+            ],
+            "correctAnswer": "B",
+            "feedback": "",
+            "nodes": [
+              "1775817938595"
+            ]
+          },
+          {
+            "id": "1776406534480",
+            "type": "essay",
+            "question": "New Question",
+            "options": [
+              "Option A",
+              "Option B",
+              "Option C",
+              "Option D"
+            ],
+            "correctAnswer": "A",
+            "feedback": "Some Feedback"
+          },
+          {
+            "id": "1776524059048",
+            "type": "multiple-choice",
+            "question": "New Question",
+            "options": [
+              "Option A",
+              "Option B",
+              "Option C",
+              "Option D"
+            ],
+            "correctAnswer": "A",
+            "feedback": "",
+            "responseFunction": ""
+          },
+          {
+            "id": "1776524231520",
+            "type": "fill-blank",
+            "question": "What is this?",
+            "options": [],
+            "correctAnswer": "Answer",
+            "feedback": "Some Feedback",
+            "responseFunction": ""
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "1776182203426",
+    "name": "tp2",
+    "description": "tpd\n",
+    "userId": "1775049679386",
+    "createdAt": "2026-04-14T15:56:43.426Z",
+    "updatedAt": "2026-04-14T16:19:19.015Z",
+    "practices": [
+      {
+        "id": "1776182218535",
+        "name": "tppp",
+        "description": "tpppd",
+        "questions": [
+          {
+            "id": "1776183559015",
+            "type": "multiple-choice",
+            "question": "Choose A",
+            "options": [
+              "AND",
+              "OR",
+              "BUT",
+              "YET"
             ],
             "correctAnswer": "A",
             "feedback": ""
