@@ -37,7 +37,6 @@
                 }
               ],
               "questionLinks": [
-                "1775973673262",
                 "1775973893267"
               ]
             },
@@ -64,7 +63,10 @@
               "applications": [
                 "1775817938595"
               ],
-              "description": "$E=mc^2$"
+              "description": "$E=mc^2$",
+              "questionLinks": [
+                "1775973673262"
+              ]
             },
             "className": "graph-node input ",
             "width": 150,
@@ -98,7 +100,7 @@
     "description": "tppd",
     "userId": "1775049679386",
     "createdAt": "2026-04-10T10:47:22.615Z",
-    "updatedAt": "2026-04-14T10:39:20.139Z",
+    "updatedAt": "2026-04-21T06:46:16.408Z",
     "graphs": [
       {
         "id": "1",
@@ -119,7 +121,7 @@
                 "1775817938595"
               ]
             },
-            "className": "graph-node input ",
+            "className": "graph-node input selected",
             "width": 150,
             "height": 46,
             "selected": false,
@@ -141,7 +143,7 @@
               "prerequisites": [],
               "applications": []
             },
-            "className": "graph-node input selected",
+            "className": "graph-node input ",
             "width": 150,
             "height": 46,
             "selected": true,

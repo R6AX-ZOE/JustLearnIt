@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import { ReactFlowProvider } from 'reactflow';
 import axios from 'axios';
 import GraphComponent from './integration/GraphComponent';
@@ -19,6 +19,8 @@ const IntegrationLevel = () => {
 };
 
 const IntegrationLevelContent = () => {
+  const { projectId, graphId, nodeId } = useParams();
+  const navigate = useNavigate();
   const [projects, setProjects] = useState([]);
   const [selectedProject, setSelectedProject] = useState(null);
   const [selectedGraph, setSelectedGraph] = useState(null);
@@ -139,6 +141,35 @@ const IntegrationLevelContent = () => {
       loadPracticeProjects();
     }
   }, [user]);
+
+  // 处理路由参数变化
+  useEffect(() => {
+    if (projects.length > 0) {
+      // 如果有projectId参数，尝试找到并选择对应的项目
+      if (projectId) {
+        const project = projects.find(p => p.id === projectId);
+        if (project) {
+          setSelectedProject(project);
+          
+          // 如果有graphId参数，尝试找到并选择对应的graph
+          if (graphId) {
+            const graph = project.graphs?.find(g => g.id === graphId);
+            if (graph) {
+              setSelectedGraph(graph);
+              
+              // 如果有nodeId参数，尝试找到并选择对应的节点
+              if (nodeId) {
+                const node = graph.nodes?.find(n => n.id === nodeId);
+                if (node) {
+                  setSelectedNode(node);
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }, [projects, projectId, graphId, nodeId]);
 
   useEffect(() => {
     const handleClickOutside = () => {
@@ -541,6 +572,8 @@ const IntegrationLevelContent = () => {
     setSelectedProject(project);
     setSelectedGraph(null);
     setSelectedNode(null);
+    // 更新路由
+    navigate(`/integration/${project.id}`);
   };
 
   const handleNodeClick = (event, node) => {
@@ -551,6 +584,10 @@ const IntegrationLevelContent = () => {
       className: `graph-node ${n.data.type || 'input'} ${n.id === node.id ? 'selected' : ''}`
     }));
     setNodes(updatedNodes);
+    // 更新路由
+    if (selectedProject && selectedGraph) {
+      navigate(`/integration/${selectedProject.id}/${selectedGraph.id}/${node.id}`);
+    }
   };
 
   const handleAddNode = () => {
@@ -1028,12 +1065,17 @@ const IntegrationLevelContent = () => {
   };
 
   const handleViewQuestionLink = (questionId) => {
-    // 查找题目
+    // 查找题目所在的项目和练习
+    let targetProject = null;
+    let targetPractice = null;
     let question = null;
+    
     for (const project of practiceProjects) {
       for (const practice of project.practices || []) {
         const foundQuestion = practice.questions?.find(q => q.id === questionId);
         if (foundQuestion) {
+          targetProject = project;
+          targetPractice = practice;
           question = foundQuestion;
           break;
         }
@@ -1041,14 +1083,9 @@ const IntegrationLevelContent = () => {
       if (question) break;
     }
 
-    if (question) {
-      openDialog({
-        title: 'Question Details',
-        message: `Question: ${question.question}`,
-        confirmText: 'OK',
-        onConfirm: closeDialog,
-        onCancel: closeDialog
-      });
+    if (targetProject && targetPractice) {
+      // 跳转到create mode下对应的问题
+      navigate(`/practice/creator/${targetProject.id}/${targetPractice.id}`);
     }
   };
 
@@ -1064,6 +1101,10 @@ const IntegrationLevelContent = () => {
       }));
       setNodes(updatedNodes);
       setSelectedNode(targetNode);
+      // 更新路由
+      if (selectedProject && selectedGraph) {
+        navigate(`/integration/${selectedProject.id}/${selectedGraph.id}/${nodeId}`);
+      }
     } else {
       // 如果在当前nodes中找不到，说明是来自其他graph的节点
       // 查找该节点所在的project和graph
@@ -1089,6 +1130,8 @@ const IntegrationLevelContent = () => {
         // 这里不需要手动设置nodes和edges，因为useEffect会处理
         // 但是我们需要设置selectedNode，以便在切换后选中该节点
         setSelectedNode(targetNode);
+        // 更新路由
+        navigate(`/integration/${targetProject.id}/${targetGraph.id}/${nodeId}`);
       }
     }
   };
@@ -1101,7 +1144,7 @@ const IntegrationLevelContent = () => {
           <div className="navigation-links">
             <Link to="/" className="nav-link">Home</Link>
             <Link to="/input" className="nav-link">Input Level</Link>
-            <Link to="/practice" className="nav-link">Practice Level</Link>
+            <Link to="/practice/student" className="nav-link">Practice Level</Link>
           </div>
           <div className="user-status">
             {user ? `Logged in as: ${user.username}` : 'Not logged in'}
@@ -1144,7 +1187,11 @@ const IntegrationLevelContent = () => {
               <div
                 key={graph.id}
                 className={`graph-item ${selectedGraph?.id === graph.id ? 'selected' : ''}`}
-                onClick={() => setSelectedGraph(graph)}
+                onClick={() => {
+                  setSelectedGraph(graph);
+                  // 更新路由
+                  navigate(`/integration/${selectedProject.id}/${graph.id}`);
+                }}
                 onContextMenu={(e) => handleContextMenu(e, 'graph', graph)}
               >
                 <h4>{graph.name}</h4>

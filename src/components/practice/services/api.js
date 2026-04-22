@@ -2,20 +2,8 @@ import axios from 'axios';
 
 const API_BASE = '/api/practice';
 
-// 全局变量，用于跟踪最近的API请求时间
-let lastFetchTime = 0;
-const requestThrottle = 1000; // 1秒内不重复请求
-
-// 获取所有项目
 export const fetchProjects = async (userId) => {
   try {
-    const now = Date.now();
-    if (now - lastFetchTime < requestThrottle) {
-      console.log('Request throttled - skipping fetchProjects');
-      return [];
-    }
-    lastFetchTime = now;
-    
     console.log('Fetching projects from server');
     const response = await axios.get(`${API_BASE}/projects`);
     return response.data.projects.filter(project => project.userId === userId);
@@ -25,7 +13,6 @@ export const fetchProjects = async (userId) => {
   }
 };
 
-// 获取项目的练习
 export const fetchPractices = async (projectId) => {
   try {
     const response = await axios.get(`${API_BASE}/project/${projectId}/practices`);
@@ -36,7 +23,6 @@ export const fetchPractices = async (projectId) => {
   }
 };
 
-// 获取练习的问题
 export const fetchQuestions = async (practiceId) => {
   try {
     const response = await axios.get(`${API_BASE}/practice/${practiceId}/questions`);
@@ -47,7 +33,6 @@ export const fetchQuestions = async (practiceId) => {
   }
 };
 
-// 创建新项目
 export const createProject = async (projectData) => {
   try {
     const response = await axios.post(`${API_BASE}/projects`, projectData);
@@ -58,7 +43,6 @@ export const createProject = async (projectData) => {
   }
 };
 
-// 创建新练习
 export const createPractice = async (projectId, practiceData) => {
   try {
     const response = await axios.post(`${API_BASE}/project/${projectId}/practices`, practiceData);
@@ -69,7 +53,6 @@ export const createPractice = async (projectId, practiceData) => {
   }
 };
 
-// 创建新问题
 export const createQuestion = async (practiceId, questionData) => {
   try {
     const response = await axios.post(`${API_BASE}/practice/${practiceId}/questions`, {
@@ -83,7 +66,6 @@ export const createQuestion = async (practiceId, questionData) => {
   }
 };
 
-// 更新问题
 export const updateQuestion = async (questionId, questionData) => {
   try {
     const response = await axios.put(`${API_BASE}/question/${questionId}`, {
@@ -97,13 +79,135 @@ export const updateQuestion = async (questionId, questionData) => {
   }
 };
 
-// 删除问题
 export const deleteQuestion = async (questionId) => {
   try {
     const response = await axios.delete(`${API_BASE}/question/${questionId}`);
     return response.data;
   } catch (error) {
     console.error('Error deleting question:', error);
+    throw error;
+  }
+};
+
+export const deleteProject = async (projectId) => {
+  try {
+    const response = await axios.delete(`${API_BASE}/projects/${projectId}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error deleting project:', error);
+    throw error;
+  }
+};
+
+export const deletePractice = async (practiceId) => {
+  try {
+    const response = await axios.delete(`${API_BASE}/practices/${practiceId}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error deleting practice:', error);
+    throw error;
+  }
+};
+
+export const fetchStudentInProgress = async (userId) => {
+  try {
+    const response = await axios.get(`${API_BASE}/student/${userId}/in-progress`);
+    return response.data.sessions || [];
+  } catch (error) {
+    console.error('Error fetching in-progress sessions:', error);
+    return [];
+  }
+};
+
+export const fetchStudentHistory = async (userId) => {
+  try {
+    const response = await axios.get(`${API_BASE}/student/${userId}/history`);
+    return response.data.history || [];
+  } catch (error) {
+    console.error('Error fetching student history:', error);
+    return [];
+  }
+};
+
+export const startSession = async (userId, practiceId, sourceQuestions = null) => {
+  try {
+    const response = await axios.post(`${API_BASE}/student/${userId}/session`, {
+      practiceId,
+      sourceQuestions
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error starting session:', error);
+    throw error;
+  }
+};
+
+export const fetchSession = async (sessionId) => {
+  try {
+    const response = await axios.get(`${API_BASE}/session/${sessionId}`);
+    return response.data.session;
+  } catch (error) {
+    console.error('Error fetching session:', error);
+    throw error;
+  }
+};
+
+export const fetchSessionPreview = async (sessionId) => {
+  try {
+    const response = await axios.get(`${API_BASE}/session/${sessionId}/preview`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching session preview:', error);
+    throw error;
+  }
+};
+
+export const fetchSessionStart = async (sessionId) => {
+  try {
+    const response = await axios.get(`${API_BASE}/session/${sessionId}/start`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching session start info:', error);
+    throw error;
+  }
+};
+
+export const submitAnswer = async (sessionId, answer) => {
+  try {
+    const response = await axios.post(`${API_BASE}/session/${sessionId}/submit`, { answer });
+    return response.data;
+  } catch (error) {
+    console.error('Error submitting answer:', error);
+    throw error;
+  }
+};
+
+export const nextQuestion = async (sessionId) => {
+  try {
+    const response = await axios.post(`${API_BASE}/session/${sessionId}/next`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching next question:', error);
+    throw error;
+  }
+};
+
+export const completeSession = async (sessionId) => {
+  try {
+    const response = await axios.post(`${API_BASE}/session/${sessionId}/complete`);
+    return response.data;
+  } catch (error) {
+    console.error('Error completing session:', error);
+    throw error;
+  }
+};
+
+export const fetchSessionEnd = async (sessionId) => {
+  try {
+    const response = await axios.get(`${API_BASE}/session/${sessionId}/end`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching session end info:', error);
     throw error;
   }
 };

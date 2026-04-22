@@ -5,14 +5,14 @@ import Home from './components/Home';
 import LearningProjects from './components/LearningProjects';
 import IntegrationLevel from './components/IntegrationLevel';
 import PracticeLevel from './components/PracticeLevel';
+import PracticeLevelStudentHome from './components/practice/PracticeLevelStudentHome';
+import PracticeLevelStudentSession from './components/practice/PracticeLevelStudentSession';
 import './App.css';
 
-// 检查用户是否已登录
 const isAuthenticated = () => {
   return localStorage.getItem('token') !== null;
 };
 
-// 受保护的路由组件
 const ProtectedRoute = ({ children }) => {
   if (!isAuthenticated()) {
     return <Navigate to="/login" />;
@@ -35,6 +35,11 @@ function App() {
               <LearningProjects />
             </ProtectedRoute>
           } />
+          <Route path="/input/:projectId" element={
+            <ProtectedRoute>
+              <LearningProjects />
+            </ProtectedRoute>
+          } />
           <Route path="/input/:projectId/:directoryId/:contentId" element={
             <ProtectedRoute>
               <LearningProjects />
@@ -50,11 +55,62 @@ function App() {
               <IntegrationLevel />
             </ProtectedRoute>
           } />
+          <Route path="/integration/:projectId" element={
+            <ProtectedRoute>
+              <IntegrationLevel />
+            </ProtectedRoute>
+          } />
+          <Route path="/integration/:projectId/:graphId" element={
+            <ProtectedRoute>
+              <IntegrationLevel />
+            </ProtectedRoute>
+          } />
+          <Route path="/integration/:projectId/:graphId/:nodeId" element={
+            <ProtectedRoute>
+              <IntegrationLevel />
+            </ProtectedRoute>
+          } />
           <Route path="/practice" element={
             <ProtectedRoute>
               <PracticeLevel />
             </ProtectedRoute>
           } />
+          <Route path="/practice/student" element={
+            <ProtectedRoute>
+              <PracticeLevelStudentHome />
+            </ProtectedRoute>
+          } />
+          <Route path="/practice/student/session/:sessionId" element={
+            <ProtectedRoute>
+              <PracticeLevelStudentSession mode="start" />
+            </ProtectedRoute>
+          } />
+          <Route path="/practice/student/session/:sessionId/practice" element={
+            <ProtectedRoute>
+              <PracticeLevelStudentSession mode="practice" />
+            </ProtectedRoute>
+          } />
+          <Route path="/practice/student/session/:sessionId/end" element={
+            <ProtectedRoute>
+              <PracticeLevelStudentSession mode="end" />
+            </ProtectedRoute>
+          } />
+          <Route path="/practice/creator" element={
+            <ProtectedRoute>
+              <PracticeLevel defaultMode="creator" />
+            </ProtectedRoute>
+          } />
+          <Route path="/practice/creator/:projectId" element={
+            <ProtectedRoute>
+              <PracticeLevel defaultMode="creator" />
+            </ProtectedRoute>
+          } />
+          <Route path="/practice/creator/:projectId/:practiceId" element={
+            <ProtectedRoute>
+              <PracticeLevel defaultMode="creator" />
+            </ProtectedRoute>
+          } />
+
           <Route path="/login" element={<Login />} />
         </Routes>
       </div>

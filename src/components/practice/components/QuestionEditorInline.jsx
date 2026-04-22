@@ -17,11 +17,11 @@ const QuestionEditorInline = ({
   onInsertBelow
 }) => {
   const [formData, setFormData] = useState({
+    id: question.id,
     type: question.type || 'multiple-choice',
     question: question.question || '',
     options: question.options || ['', '', '', ''],
     correctAnswer: question.correctAnswer || '',
-    feedback: question.feedback || '',
     responseFunction: question.responseFunction || '',
     nodes: question.nodes || []
   });
@@ -40,11 +40,11 @@ const QuestionEditorInline = ({
 
   useEffect(() => {
     setFormData({
+      id: question.id,
       type: question.type || 'multiple-choice',
       question: question.question || '',
       options: question.options || ['', '', '', ''],
       correctAnswer: question.correctAnswer || '',
-      feedback: question.feedback || '',
       responseFunction: question.responseFunction || '',
       nodes: question.nodes || []
     });
@@ -150,10 +150,6 @@ const QuestionEditorInline = ({
 
   const handleCorrectAnswerChange = (answer) => {
     setFormData({ ...formData, correctAnswer: answer });
-  };
-
-  const handleFeedbackChange = (feedback) => {
-    setFormData({ ...formData, feedback });
   };
 
   const handleResponseFunctionChange = (responseFunction) => {
@@ -291,15 +287,7 @@ const QuestionEditorInline = ({
           </div>
         )}
         
-        <div className="form-group">
-          <label>Feedback</label>
-          <textarea
-            value={formData.feedback}
-            onChange={(e) => handleFeedbackChange(e.target.value)}
-            rows={2}
-          />
-        </div>
-        
+
         <div className="form-group">
           <label>Response Function (JavaScript, supports Markdown and KaTeX)</label>
           <textarea

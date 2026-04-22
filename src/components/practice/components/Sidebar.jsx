@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 
 const Sidebar = ({
   projects,
@@ -23,6 +23,7 @@ const Sidebar = ({
     item: null,
     type: ''
   });
+  const longPressTimer = useRef(null);
 
   const handleContextMenu = (e, item, type) => {
     e.preventDefault();
@@ -35,6 +36,19 @@ const Sidebar = ({
     });
   };
 
+  const startLongPress = (e, item, type) => {
+    longPressTimer.current = setTimeout(() => {
+      handleContextMenu(e, item, type);
+    }, 500);
+  };
+
+  const cancelLongPress = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
+
   const handleClick = () => {
     setContextMenu(prev => ({ ...prev, visible: false }));
   };
@@ -42,9 +56,9 @@ const Sidebar = ({
   const handleMenuItemClick = (action) => {
     const { item, type } = contextMenu;
     
-    if (type === 'project' && action === 'delete') {
+    if (type === 'project' && action === 'delete' && onDeleteProject) {
       onDeleteProject(item.id);
-    } else if (type === 'practice' && action === 'delete') {
+    } else if (type === 'practice' && action === 'delete' && onDeletePractice) {
       onDeletePractice(item.id);
     }
     
@@ -60,8 +74,17 @@ const Sidebar = ({
             <div
               key={project.id}
               className={`project-item ${selectedProject?.id === project.id ? 'active' : ''}`}
-              onClick={() => setSelectedProject(project)}
+              onClick={() => {
+                setSelectedProject(project);
+                console.log('Project clicked:', project);
+              }}
               onContextMenu={!isStudentMode ? (e) => handleContextMenu(e, project, 'project') : undefined}
+              onMouseDown={!isStudentMode ? (e) => startLongPress(e, project, 'project') : undefined}
+              onMouseUp={!isStudentMode ? cancelLongPress : undefined}
+              onMouseLeave={!isStudentMode ? cancelLongPress : undefined}
+              onTouchStart={!isStudentMode ? (e) => startLongPress(e, project, 'project') : undefined}
+              onTouchEnd={!isStudentMode ? cancelLongPress : undefined}
+              onTouchCancel={!isStudentMode ? cancelLongPress : undefined}
             >
               {project.name}
             </div>
@@ -85,8 +108,18 @@ const Sidebar = ({
               <div
                 key={practice.id}
                 className={`practice-item ${selectedPractice?.id === practice.id ? 'active' : ''}`}
-                onClick={() => setSelectedPractice(practice)}
+                onClick={() => {
+                  setSelectedPractice(practice);
+                  console.log('Practice clicked:', practice);
+                  console.log('Selected project:', selectedProject);
+                }}
                 onContextMenu={!isStudentMode ? (e) => handleContextMenu(e, practice, 'practice') : undefined}
+                onMouseDown={!isStudentMode ? (e) => startLongPress(e, practice, 'practice') : undefined}
+                onMouseUp={!isStudentMode ? cancelLongPress : undefined}
+                onMouseLeave={!isStudentMode ? cancelLongPress : undefined}
+                onTouchStart={!isStudentMode ? (e) => startLongPress(e, practice, 'practice') : undefined}
+                onTouchEnd={!isStudentMode ? cancelLongPress : undefined}
+                onTouchCancel={!isStudentMode ? cancelLongPress : undefined}
               >
                 {practice.name}
               </div>
@@ -113,7 +146,7 @@ const Sidebar = ({
                 className={`question-item ${currentQuestionIndex === index ? 'active' : ''}`}
                 onClick={() => setCurrentQuestionIndex(index)}
               >
-                Q{index + 1}: {question.question.substring(0, 30)}...
+                Q{index + 1}
               </div>
             ))}
           </div>

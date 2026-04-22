@@ -1,55 +1,79 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Sidebar from './components/Sidebar';
 import QuestionEditorInline from './components/QuestionEditorInline';
-import { fetchProjects, fetchPractices, fetchQuestions, createQuestion, updateQuestion, deleteQuestion } from './services/api';
+import { fetchProjects, fetchPractices, fetchQuestions, createQuestion, updateQuestion, deleteQuestion, deleteProject, deletePractice } from './services/api';
 import { styles } from './styles';
 
-const PracticeLevelCreator = ({ user }) => {
-  // 状态管理
+const PracticeLevelCreator = ({ selectedProjectId, selectedPracticeId, questionIndex, onSelectionChange, onQuestionChange }) => {
+  const user = JSON.parse(localStorage.getItem('user') || 'null');
+
   const [projects, setProjects] = useState([]);
   const [selectedProject, setSelectedProject] = useState(null);
   const [practices, setPractices] = useState([]);
   const [selectedPractice, setSelectedPractice] = useState(null);
   const [questions, setQuestions] = useState([]);
-  
-  // 加载项目
+  const [scrollRef, setScrollRef] = useState(null);
+
+  const isInitialized = useRef(false);
+
   useEffect(() => {
-    if (user) {
+    if (user && !isInitialized.current) {
+      isInitialized.current = true;
       loadProjects();
     }
   }, [user]);
-  
-  // 当项目列表加载完成后，设置默认项目
+
   useEffect(() => {
-    if (projects.length > 0 && !selectedProject) {
-      setSelectedProject(projects[0]);
+    if (projects.length > 0 && selectedProjectId && !selectedProject) {
+      const project = projects.find(p => p.id === selectedProjectId);
+      if (project) {
+        setSelectedProject(project);
+      }
     }
-  }, [projects, selectedProject]);
-  
-  // 加载练习
+  }, [projects, selectedProjectId, selectedProject]);
+
   useEffect(() => {
     if (selectedProject) {
       loadPractices();
+    } else {
+      setPractices([]);
+      setSelectedPractice(null);
+      setQuestions([]);
     }
   }, [selectedProject]);
-  
-  // 加载问题
+
+  useEffect(() => {
+    if (practices.length > 0 && selectedPracticeId && !selectedPractice) {
+      const practice = practices.find(p => p.id === selectedPracticeId);
+      if (practice) {
+        setSelectedPractice(practice);
+      }
+    }
+  }, [practices, selectedPracticeId, selectedPractice]);
+
   useEffect(() => {
     if (selectedPractice) {
       loadQuestions();
+    } else {
+      setQuestions([]);
     }
   }, [selectedPractice]);
-  
-  // 当练习列表加载完成后，设置默认练习
+
   useEffect(() => {
     if (practices.length > 0 && !selectedPractice) {
       setSelectedPractice(practices[0]);
-    } else if (practices.length === 0) {
-      setSelectedPractice(null);
     }
   }, [practices, selectedPractice]);
-  
-  // 获取所有项目
+
+  useEffect(() => {
+    if (questionIndex !== null && questions.length > 0) {
+      const validIndex = Math.max(0, Math.min(questionIndex, questions.length - 1));
+      if (scrollRef && scrollRef.childNodes[validIndex]) {
+        scrollRef.childNodes[validIndex].scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+  }, [questionIndex, questions, scrollRef]);
+
   const loadProjects = useCallback(async () => {
     try {
       const userProjects = await fetchProjects(user.id);
@@ -58,8 +82,7 @@ const PracticeLevelCreator = ({ user }) => {
       console.error('Error fetching projects:', error);
     }
   }, [user]);
-  
-  // 获取项目的练习
+
   const loadPractices = useCallback(async () => {
     try {
       const projectPractices = await fetchPractices(selectedProject.id);
@@ -68,8 +91,7 @@ const PracticeLevelCreator = ({ user }) => {
       console.error('Error fetching practices:', error);
     }
   }, [selectedProject]);
-  
-  // 获取练习的问题
+
   const loadQuestions = useCallback(async () => {
     try {
       const practiceQuestions = await fetchQuestions(selectedPractice.id);
@@ -78,15 +100,28 @@ const PracticeLevelCreator = ({ user }) => {
       console.error('Error fetching questions:', error);
     }
   }, [selectedPractice]);
-  
-  // 保存问题
+
+  const handleProjectSelect = (project) => {
+    setSelectedProject(project);
+    setSelectedPractice(null);
+    setQuestions([]);
+    if (onSelectionChange) {
+      onSelectionChange(project.id, null);
+    }
+  };
+
+  const handlePracticeSelect = (practice) => {
+    setSelectedPractice(practice);
+    if (onSelectionChange) {
+      onSelectionChange(selectedProject?.id, practice.id);
+    }
+  };
+
   const handleSaveQuestion = async (questionData) => {
     try {
       if (questionData.id) {
-        // 更新现有问题
         await updateQuestion(questionData.id, questionData);
       } else {
-        // 创建新问题
         await createQuestion(selectedPractice.id, questionData);
       }
       await loadQuestions();
@@ -94,8 +129,7 @@ const PracticeLevelCreator = ({ user }) => {
       console.error('Error saving question:', error);
     }
   };
-  
-  // 删除问题
+
   const handleDeleteQuestion = async (questionId) => {
     try {
       await deleteQuestion(questionId);
@@ -104,45 +138,71 @@ const PracticeLevelCreator = ({ user }) => {
       console.error('Error deleting question:', error);
     }
   };
-  
-  // 在当前问题下方插入新问题
+
+  const handleDeleteProject = async (projectId) => {
+    try {
+      await deleteProject(projectId);
+      await loadProjects();
+      setSelectedProject(null);
+      setPractices([]);
+      setSelectedPractice(null);
+      setQuestions([]);
+      if (onSelectionChange) {
+        onSelectionChange(null, null);
+      }
+    } catch (error) {
+      console.error('Error deleting project:', error);
+    }
+  };
+
+  const handleDeletePractice = async (practiceId) => {
+    try {
+      await deletePractice(practiceId);
+      await loadPractices();
+      setSelectedPractice(null);
+      setQuestions([]);
+      if (onSelectionChange) {
+        onSelectionChange(selectedProject?.id, null);
+      }
+    } catch (error) {
+      console.error('Error deleting practice:', error);
+    }
+  };
+
   const handleInsertQuestionBelow = async (index) => {
     try {
-      // 创建一个新的空问题，传递插入位置
       const newQuestion = await createQuestion(selectedPractice.id, {
         type: 'multiple-choice',
         question: 'New Question',
         options: ['Option A', 'Option B', 'Option C', 'Option D'],
         correctAnswer: 'A',
-        feedback: '',
-        position: index + 1 // 在当前问题下方插入
+        position: index + 1
       });
-      
-      // 重新加载问题列表
+
       await loadQuestions();
-      
+
       console.log(`Inserted new question at position ${index + 1}`);
     } catch (error) {
       console.error('Error inserting question:', error);
     }
   };
-  
+
   return (
     <div className="practice-level">
       <div className="practice-content">
-        {/* 左侧项目和练习列表 */}
         <Sidebar
           projects={projects}
           selectedProject={selectedProject}
-          setSelectedProject={setSelectedProject}
+          setSelectedProject={handleProjectSelect}
           practices={practices}
           selectedPractice={selectedPractice}
-          setSelectedPractice={setSelectedPractice}
+          setSelectedPractice={handlePracticeSelect}
           questions={questions}
           isStudentMode={false}
+          onDeleteProject={handleDeleteProject}
+          onDeletePractice={handleDeletePractice}
         />
-        
-        {/* 右侧练习内容 */}
+
         <div className="practice-main">
           {!selectedProject ? (
             <div className="empty-state">
@@ -160,8 +220,11 @@ const PracticeLevelCreator = ({ user }) => {
                 <h3>{selectedPractice.name}</h3>
                 <p>{selectedPractice.description}</p>
               </div>
-              
-              <div className="questions-container">
+
+              <div 
+                className="questions-container" 
+                ref={(el) => setScrollRef(el)}
+              >
                 {questions.map((question, index) => (
                   <QuestionEditorInline
                     key={question.id}
@@ -172,8 +235,7 @@ const PracticeLevelCreator = ({ user }) => {
                     onInsertBelow={() => handleInsertQuestionBelow(index)}
                   />
                 ))}
-                
-                {/* 添加新问题按钮 */}
+
                 <div className="add-question-container">
                   <button
                     className="btn btn-primary"
@@ -187,7 +249,7 @@ const PracticeLevelCreator = ({ user }) => {
           )}
         </div>
       </div>
-      
+
       <style>{styles}</style>
     </div>
   );

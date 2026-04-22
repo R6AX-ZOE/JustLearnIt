@@ -8,6 +8,39 @@ const router = express.Router();
 const PRACTICE_FILE = path.join(process.cwd(), 'practice.json');
 // 集成数据文件路径
 const INTEGRATION_FILE = path.join(process.cwd(), 'integration.json');
+// 学生进度数据文件路径
+const STUDENT_PROGRESS_FILE = path.join(process.cwd(), 'studentProgress.json');
+
+// 加载学生进度数据
+const loadStudentProgress = () => {
+  try {
+    if (fs.existsSync(STUDENT_PROGRESS_FILE)) {
+      const data = fs.readFileSync(STUDENT_PROGRESS_FILE, 'utf8');
+      return JSON.parse(data);
+    }
+    return { inProgress: [], history: [] };
+  } catch (error) {
+    console.error('Error loading student progress:', error.message);
+    return { inProgress: [], history: [] };
+  }
+};
+
+// 保存学生进度数据
+const saveStudentProgress = (progressData) => {
+  try {
+    fs.writeFileSync(STUDENT_PROGRESS_FILE, JSON.stringify(progressData, null, 2));
+    console.log('Student progress saved to file');
+  } catch (error) {
+    console.error('Error saving student progress:', error.message);
+  }
+};
+
+let studentProgressData = loadStudentProgress();
+
+// 持久化学生进度
+const persistStudentProgress = () => {
+  saveStudentProgress(studentProgressData);
+};
 
 // 加载集成数据
 const loadIntegration = () => {
@@ -64,24 +97,59 @@ const persistPractice = () => {
 };
 
 // 执行 responseFunction 生成反馈
-const executeResponseFunction = (responseFunction, question, answer, isCorrect) => {
+const executeResponseFunction = (responseFunction, question, answer, isCorrect, sessionId) => {
   if (!responseFunction) return null;
-  
+
   try {
-    // 创建一个安全的执行环境
     const sandbox = {
       question,
       answer,
       isCorrect,
-      Math
+      Math,
+      sessionId,
+      storage: {
+        get: (key) => {
+          const session = studentProgressData.inProgress.find(s => s.id === sessionId);
+          return session?.pluginData?.[key];
+        },
+        set: (key, value) => {
+          const session = studentProgressData.inProgress.find(s => s.id === sessionId);
+          if (session) {
+            if (!session.pluginData) session.pluginData = {};
+            session.pluginData[key] = value;
+            persistStudentProgress();
+          }
+        }
+      },
+      plugins: {
+        execute: (pluginName, methodName, ...args) => {
+          console.log(`Plugin ${pluginName}.${methodName} called with args:`, args);
+          if (methodName === 'formatMessage') {
+            const [isCorrectFlag, message] = args;
+            return isCorrectFlag ? `✅ ${message}` : `❌ ${message}`;
+          }
+          if (methodName === 'getAnswer') {
+            return question.correctAnswer;
+          }
+          return args[args.length - 1];
+        }
+      }
     };
-    
-    // 使用 Function 构造函数创建函数并执行
-    const func = new Function('question', 'answer', 'isCorrect', 'Math', responseFunction);
-    return func(question, answer, isCorrect, Math);
+
+    try {
+      const func = new Function('question', 'answer', 'isCorrect', 'Math', 'plugins', 'sessionId', 'storage', `return ${responseFunction}`);
+      return func(question, answer, isCorrect, Math, sandbox.plugins, sessionId, sandbox.storage);
+    } catch (exprError) {
+      try {
+        const func = new Function('question', 'answer', 'isCorrect', 'Math', 'plugins', 'sessionId', 'storage', responseFunction);
+        return func(question, answer, isCorrect, Math, sandbox.plugins, sessionId, sandbox.storage);
+      } catch (funcError) {
+        throw new Error(`Both expression and function execution failed: ${exprError.message} | ${funcError.message}`);
+      }
+    }
   } catch (error) {
     console.error('Error executing response function:', error.message);
-    return null;
+    return `Error: ${error.message}`;
   }
 };
 
@@ -178,7 +246,7 @@ router.put('/project/:id', (req, res) => {
     if (name !== undefined) practiceData[projectIndex].name = name;
     if (description !== undefined) practiceData[projectIndex].description = description;
     if (practices !== undefined) practiceData[projectIndex].practices = practices;
-    
+
     practiceData[projectIndex].updatedAt = new Date();
     persistPractice();
 
@@ -193,7 +261,7 @@ router.delete('/project/:id', (req, res) => {
   try {
     const { id } = req.params;
     const projectIndex = practiceData.findIndex(project => project.id === id);
-    
+
     if (projectIndex === -1) {
       return res.status(404).json({ message: 'Project not found' });
     }
@@ -211,7 +279,7 @@ router.get('/project/:projectId/practices', (req, res) => {
   try {
     const { projectId } = req.params;
     const project = practiceData.find(project => project.id === projectId);
-    
+
     if (!project) {
       return res.status(404).json({ message: 'Project not found' });
     }
@@ -227,7 +295,7 @@ router.get('/practice/:id', (req, res) => {
   try {
     const { id } = req.params;
     let practice = null;
-    
+
     for (const project of practiceData) {
       const foundPractice = project.practices?.find(p => p.id === id);
       if (foundPractice) {
@@ -235,7 +303,7 @@ router.get('/practice/:id', (req, res) => {
         break;
       }
     }
-    
+
     if (!practice) {
       return res.status(404).json({ message: 'Practice not found' });
     }
@@ -251,7 +319,7 @@ router.post('/project/:projectId/practices', (req, res) => {
   try {
     const { projectId } = req.params;
     const { name, description } = req.body;
-    
+
     if (!name) {
       return res.status(400).json({ message: 'Name is required' });
     }
@@ -276,10 +344,10 @@ router.post('/project/:projectId/practices', (req, res) => {
     project.updatedAt = new Date();
     persistPractice();
 
-    res.status(201).json({ 
-      message: 'Practice created successfully', 
+    res.status(201).json({
+      message: 'Practice created successfully',
       project,
-      practice: newPractice 
+      practice: newPractice
     });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -291,11 +359,11 @@ router.put('/practice/:id', (req, res) => {
   try {
     const { id } = req.params;
     const { name, description, questions } = req.body;
-    
+
     let practice = null;
     let projectIndex = -1;
     let practiceIndex = -1;
-    
+
     for (let i = 0; i < practiceData.length; i++) {
       const project = practiceData[i];
       const index = project.practices?.findIndex(p => p.id === id);
@@ -306,7 +374,7 @@ router.put('/practice/:id', (req, res) => {
         break;
       }
     }
-    
+
     if (!practice) {
       return res.status(404).json({ message: 'Practice not found' });
     }
@@ -314,14 +382,14 @@ router.put('/practice/:id', (req, res) => {
     if (name !== undefined) practiceData[projectIndex].practices[practiceIndex].name = name;
     if (description !== undefined) practiceData[projectIndex].practices[practiceIndex].description = description;
     if (questions !== undefined) practiceData[projectIndex].practices[practiceIndex].questions = questions;
-    
+
     practiceData[projectIndex].updatedAt = new Date();
     persistPractice();
 
-    res.status(200).json({ 
-      message: 'Practice updated successfully', 
+    res.status(200).json({
+      message: 'Practice updated successfully',
       project: practiceData[projectIndex],
-      practice: practiceData[projectIndex].practices[practiceIndex] 
+      practice: practiceData[projectIndex].practices[practiceIndex]
     });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -334,7 +402,7 @@ router.delete('/practice/:id', (req, res) => {
     const { id } = req.params;
     let projectIndex = -1;
     let practiceIndex = -1;
-    
+
     for (let i = 0; i < practiceData.length; i++) {
       const project = practiceData[i];
       const index = project.practices?.findIndex(p => p.id === id);
@@ -344,7 +412,7 @@ router.delete('/practice/:id', (req, res) => {
         break;
       }
     }
-    
+
     if (projectIndex === -1) {
       return res.status(404).json({ message: 'Practice not found' });
     }
@@ -353,9 +421,9 @@ router.delete('/practice/:id', (req, res) => {
     practiceData[projectIndex].updatedAt = new Date();
     persistPractice();
 
-    res.status(200).json({ 
-      message: 'Practice deleted successfully', 
-      project: practiceData[projectIndex] 
+    res.status(200).json({
+      message: 'Practice deleted successfully',
+      project: practiceData[projectIndex]
     });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -367,7 +435,7 @@ router.get('/practice/:practiceId/questions', (req, res) => {
   try {
     const { practiceId } = req.params;
     let practice = null;
-    
+
     for (const project of practiceData) {
       const foundPractice = project.practices?.find(p => p.id === practiceId);
       if (foundPractice) {
@@ -375,7 +443,7 @@ router.get('/practice/:practiceId/questions', (req, res) => {
         break;
       }
     }
-    
+
     if (!practice) {
       return res.status(404).json({ message: 'Practice not found' });
     }
@@ -391,7 +459,7 @@ router.get('/question/:id', (req, res) => {
   try {
     const { id } = req.params;
     let question = null;
-    
+
     for (const project of practiceData) {
       for (const practice of project.practices || []) {
         const foundQuestion = practice.questions?.find(q => q.id === id);
@@ -402,7 +470,7 @@ router.get('/question/:id', (req, res) => {
       }
       if (question) break;
     }
-    
+
     if (!question) {
       return res.status(404).json({ message: 'Question not found' });
     }
@@ -418,7 +486,7 @@ router.post('/practice/:practiceId/questions', (req, res) => {
   try {
     const { practiceId } = req.params;
     const { type, question, options, correctAnswer, feedback, responseFunction, position } = req.body;
-    
+
     if (!type || !question) {
       return res.status(400).json({ message: 'Type and question are required' });
     }
@@ -426,7 +494,7 @@ router.post('/practice/:practiceId/questions', (req, res) => {
     let practice = null;
     let projectIndex = -1;
     let practiceIndex = -1;
-    
+
     for (let i = 0; i < practiceData.length; i++) {
       const project = practiceData[i];
       const index = project.practices?.findIndex(p => p.id === practiceId);
@@ -437,7 +505,7 @@ router.post('/practice/:practiceId/questions', (req, res) => {
         break;
       }
     }
-    
+
     if (!practice) {
       return res.status(404).json({ message: 'Practice not found' });
     }
@@ -456,20 +524,18 @@ router.post('/practice/:practiceId/questions', (req, res) => {
       practice.questions = [];
     }
 
-    // 如果提供了位置参数，在指定位置插入问题
     if (position !== undefined && position >= 0 && position <= practice.questions.length) {
       practiceData[projectIndex].practices[practiceIndex].questions.splice(position, 0, newQuestion);
     } else {
-      // 否则添加到末尾
       practiceData[projectIndex].practices[practiceIndex].questions.push(newQuestion);
     }
-    
+
     practiceData[projectIndex].updatedAt = new Date();
     persistPractice();
 
-    res.status(201).json({ 
-      message: 'Question created successfully', 
-      question: newQuestion 
+    res.status(201).json({
+      message: 'Question created successfully',
+      question: newQuestion
     });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -481,12 +547,12 @@ router.put('/question/:id', (req, res) => {
   try {
     const { id } = req.params;
     const { type, question, options, correctAnswer, feedback, responseFunction } = req.body;
-    
+
     let questionObj = null;
     let projectIndex = -1;
     let practiceIndex = -1;
     let questionIndex = -1;
-    
+
     for (let i = 0; i < practiceData.length; i++) {
       const project = practiceData[i];
       for (let j = 0; j < (project.practices?.length || 0); j++) {
@@ -502,7 +568,7 @@ router.put('/question/:id', (req, res) => {
       }
       if (questionObj) break;
     }
-    
+
     if (!questionObj) {
       return res.status(404).json({ message: 'Question not found' });
     }
@@ -513,13 +579,13 @@ router.put('/question/:id', (req, res) => {
     if (correctAnswer !== undefined) practiceData[projectIndex].practices[practiceIndex].questions[questionIndex].correctAnswer = correctAnswer;
     if (feedback !== undefined) practiceData[projectIndex].practices[practiceIndex].questions[questionIndex].feedback = feedback;
     if (responseFunction !== undefined) practiceData[projectIndex].practices[practiceIndex].questions[questionIndex].responseFunction = responseFunction;
-    
+
     practiceData[projectIndex].updatedAt = new Date();
     persistPractice();
 
-    res.status(200).json({ 
-      message: 'Question updated successfully', 
-      question: practiceData[projectIndex].practices[practiceIndex].questions[questionIndex] 
+    res.status(200).json({
+      message: 'Question updated successfully',
+      question: practiceData[projectIndex].practices[practiceIndex].questions[questionIndex]
     });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -533,7 +599,7 @@ router.delete('/question/:id', (req, res) => {
     let projectIndex = -1;
     let practiceIndex = -1;
     let questionIndex = -1;
-    
+
     for (let i = 0; i < practiceData.length; i++) {
       const project = practiceData[i];
       for (let j = 0; j < (project.practices?.length || 0); j++) {
@@ -548,7 +614,7 @@ router.delete('/question/:id', (req, res) => {
       }
       if (projectIndex !== -1) break;
     }
-    
+
     if (projectIndex === -1) {
       return res.status(404).json({ message: 'Question not found' });
     }
@@ -557,9 +623,160 @@ router.delete('/question/:id', (req, res) => {
     practiceData[projectIndex].updatedAt = new Date();
     persistPractice();
 
-    res.status(200).json({ 
-      message: 'Question deleted successfully', 
-      project: practiceData[projectIndex] 
+    res.status(200).json({
+      message: 'Question deleted successfully',
+      project: practiceData[projectIndex]
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// 获取学生未完成的练习
+router.get('/student/:userId/in-progress', (req, res) => {
+  try {
+    const { userId } = req.params;
+    const userSessions = studentProgressData.inProgress.filter(s => s.userId === userId);
+    res.status(200).json({ sessions: userSessions });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// 获取学生历史记录
+router.get('/student/:userId/history', (req, res) => {
+  try {
+    const { userId } = req.params;
+    const userHistory = studentProgressData.history.filter(h => h.userId === userId);
+    res.status(200).json({ history: userHistory });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// 开始新的练习会话
+router.post('/student/:userId/session', (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { practiceId, sourceQuestions } = req.body;
+
+    if (!practiceId) {
+      return res.status(400).json({ message: 'Practice ID is required' });
+    }
+
+    let practice = null;
+    for (const project of practiceData) {
+      const foundPractice = project.practices?.find(p => p.id === practiceId);
+      if (foundPractice) {
+        practice = foundPractice;
+        break;
+      }
+    }
+
+    if (!practice) {
+      return res.status(404).json({ message: 'Practice not found' });
+    }
+
+    let questions = [];
+    if (sourceQuestions && sourceQuestions.length > 0) {
+      questions = sourceQuestions;
+    } else {
+      questions = [...(practice.questions || [])];
+    }
+
+    if (questions.length === 0) {
+      return res.status(400).json({ message: 'No questions available in this practice' });
+    }
+
+    const session = {
+      id: `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      userId,
+      practiceId,
+      practiceName: practice.name,
+      questions,
+      currentQuestionIndex: 0,
+      answers: {},
+      startTime: new Date(),
+      lastActivityTime: new Date(),
+      status: 'in_progress',
+      score: null,
+      totalQuestions: questions.length,
+      pluginData: {}
+    };
+
+    studentProgressData.inProgress.push(session);
+    persistStudentProgress();
+
+    res.status(201).json({
+      message: 'Session started successfully',
+      session: session
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// 获取会话详情
+router.get('/session/:sessionId', (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const session = studentProgressData.inProgress.find(s => s.id === sessionId);
+
+    if (!session) {
+      return res.status(404).json({ message: 'Session not found' });
+    }
+
+    res.status(200).json({ session });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// 获取会话当前题目（无答案预览）
+router.get('/session/:sessionId/preview', (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const session = studentProgressData.inProgress.find(s => s.id === sessionId);
+
+    if (!session) {
+      return res.status(404).json({ message: 'Session not found' });
+    }
+
+    const previewQuestions = session.questions.slice(0, 2).map(q => ({
+      id: q.id,
+      type: q.type,
+      question: q.question,
+      options: q.options,
+      nodes: q.nodes
+    }));
+
+    res.status(200).json({
+      sessionId: session.id,
+      practiceName: session.practiceName,
+      totalQuestions: session.totalQuestions,
+      previewQuestions
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// 获取会话的起始页信息
+router.get('/session/:sessionId/start', (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const session = studentProgressData.inProgress.find(s => s.id === sessionId);
+
+    if (!session) {
+      return res.status(404).json({ message: 'Session not found' });
+    }
+
+    res.status(200).json({
+      sessionId: session.id,
+      practiceName: session.practiceName,
+      totalQuestions: session.totalQuestions,
+      startTime: session.startTime,
+      currentQuestionIndex: session.currentQuestionIndex
     });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -567,17 +784,193 @@ router.delete('/question/:id', (req, res) => {
 });
 
 // 提交答案并获取反馈
+router.post('/session/:sessionId/submit', (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const { answer } = req.body;
+
+    if (answer === undefined) {
+      return res.status(400).json({ message: 'Answer is required' });
+    }
+
+    const sessionIndex = studentProgressData.inProgress.findIndex(s => s.id === sessionId);
+    if (sessionIndex === -1) {
+      return res.status(404).json({ message: 'Session not found' });
+    }
+
+    const session = studentProgressData.inProgress[sessionIndex];
+    const currentQuestion = session.questions[session.currentQuestionIndex];
+
+    if (!currentQuestion) {
+      return res.status(400).json({ message: 'No current question' });
+    }
+
+    let feedback = '';
+    let isCorrect = false;
+
+    if (currentQuestion.type === 'multiple-choice') {
+      isCorrect = answer === currentQuestion.correctAnswer;
+    } else if (currentQuestion.type === 'fill-blank') {
+      isCorrect = answer.toLowerCase() === currentQuestion.correctAnswer.toLowerCase();
+    } else if (currentQuestion.type === 'essay') {
+      isCorrect = true;
+    }
+
+    if (currentQuestion.responseFunction) {
+      const functionFeedback = executeResponseFunction(currentQuestion.responseFunction, currentQuestion, answer, isCorrect, sessionId);
+      feedback = functionFeedback || 'Feedback generation failed';
+    } else {
+      feedback = isCorrect ? 'Correct' : 'Incorrect';
+    }
+
+    session.answers[currentQuestion.id] = {
+      answer,
+      isCorrect,
+      feedback,
+      submittedAt: new Date()
+    };
+    session.lastActivityTime = new Date();
+    persistStudentProgress();
+
+    res.status(200).json({
+      questionId: currentQuestion.id,
+      userAnswer: answer,
+      isCorrect,
+      feedback,
+      isMarkdown: true,
+      currentQuestionIndex: session.currentQuestionIndex,
+      totalQuestions: session.totalQuestions
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// 下一题
+router.post('/session/:sessionId/next', (req, res) => {
+  try {
+    const { sessionId } = req.params;
+
+    const sessionIndex = studentProgressData.inProgress.findIndex(s => s.id === sessionId);
+    if (sessionIndex === -1) {
+      return res.status(404).json({ message: 'Session not found' });
+    }
+
+    const session = studentProgressData.inProgress[sessionIndex];
+
+    if (session.currentQuestionIndex < session.totalQuestions - 1) {
+      session.currentQuestionIndex++;
+      session.lastActivityTime = new Date();
+      persistStudentProgress();
+
+      const nextQuestion = session.questions[session.currentQuestionIndex];
+      res.status(200).json({
+        currentQuestionIndex: session.currentQuestionIndex,
+        question: {
+          id: nextQuestion.id,
+          type: nextQuestion.type,
+          question: nextQuestion.question,
+          options: nextQuestion.options,
+          nodes: nextQuestion.nodes
+        },
+        hasAnswered: !!session.answers[nextQuestion.id]
+      });
+    } else {
+      res.status(200).json({
+        message: 'All questions completed',
+        currentQuestionIndex: session.currentQuestionIndex,
+        isLastQuestion: true
+      });
+    }
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// 完成会话
+router.post('/session/:sessionId/complete', (req, res) => {
+  try {
+    const { sessionId } = req.params;
+
+    const sessionIndex = studentProgressData.inProgress.findIndex(s => s.id === sessionId);
+    if (sessionIndex === -1) {
+      return res.status(404).json({ message: 'Session not found' });
+    }
+
+    const session = studentProgressData.inProgress[sessionIndex];
+    const totalQuestions = session.totalQuestions;
+    const correctCount = Object.values(session.answers).filter(a => a.isCorrect).length;
+    const score = totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0;
+
+    const historyEntry = {
+      id: `history_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      userId: session.userId,
+      sessionId: session.id,
+      practiceId: session.practiceId,
+      practiceName: session.practiceName,
+      questions: session.questions,
+      answers: session.answers,
+      score,
+      correctCount,
+      totalQuestions,
+      startTime: session.startTime,
+      endTime: new Date(),
+      completedAt: new Date()
+    };
+
+    studentProgressData.history.push(historyEntry);
+    studentProgressData.inProgress.splice(sessionIndex, 1);
+    persistStudentProgress();
+
+    res.status(200).json({
+      message: 'Session completed successfully',
+      summary: {
+        score,
+        correctCount,
+        totalQuestions,
+        practiceName: session.practiceName
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// 获取会话结束页信息
+router.get('/session/:sessionId/end', (req, res) => {
+  try {
+    const { sessionId } = req.params;
+
+    const history = studentProgressData.history.find(h => h.sessionId === sessionId);
+    if (!history) {
+      return res.status(404).json({ message: 'Session history not found' });
+    }
+
+    res.status(200).json({
+      sessionId: history.sessionId,
+      practiceName: history.practiceName,
+      score: history.score,
+      correctCount: history.correctCount,
+      totalQuestions: history.totalQuestions,
+      completedAt: history.completedAt
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// 提交答案并获取反馈（旧接口，保留兼容性）
 router.post('/question/:id/submit', (req, res) => {
   try {
     const { id } = req.params;
     const { answer } = req.body;
-    
+
     if (!answer) {
       return res.status(400).json({ message: 'Answer is required' });
     }
 
     let question = null;
-    
+
     for (const project of practiceData) {
       for (const practice of project.practices || []) {
         const foundQuestion = practice.questions?.find(q => q.id === id);
@@ -588,7 +981,7 @@ router.post('/question/:id/submit', (req, res) => {
       }
       if (question) break;
     }
-    
+
     if (!question) {
       return res.status(404).json({ message: 'Question not found' });
     }
@@ -601,37 +994,21 @@ router.post('/question/:id/submit', (req, res) => {
     } else if (question.type === 'fill-blank') {
       isCorrect = answer.toLowerCase() === question.correctAnswer.toLowerCase();
     } else if (question.type === 'essay') {
-      isCorrect = true; // 解答题暂时标记为正确
+      isCorrect = true;
     }
 
-    // 尝试执行 responseFunction 生成反馈
     if (question.responseFunction) {
-      const functionFeedback = executeResponseFunction(question.responseFunction, question, answer, isCorrect);
-      if (functionFeedback) {
-        feedback = functionFeedback;
-      } else {
-        // 如果函数执行失败，使用默认反馈
-        if (isCorrect) {
-          feedback = 'Correct! ' + (question.feedback || 'Well done.');
-        } else {
-          feedback = 'Incorrect. ' + (question.feedback || 'Try again.');
-        }
-      }
+      const functionFeedback = executeResponseFunction(question.responseFunction, question, answer, isCorrect, null);
+      feedback = functionFeedback || 'Feedback generation failed';
     } else {
-      // 使用默认反馈
-      if (isCorrect) {
-        feedback = 'Correct! ' + (question.feedback || 'Well done.');
-      } else {
-        feedback = 'Incorrect. ' + (question.feedback || 'Try again.');
-      }
+      feedback = isCorrect ? 'Correct' : 'Incorrect';
     }
 
-    res.status(200).json({ 
+    res.status(200).json({
       questionId: id,
       userAnswer: answer,
       isCorrect,
       feedback,
-      // 标记反馈为 markdown 格式，前端需要使用 markdown 渲染器处理
       isMarkdown: true
     });
   } catch (error) {
@@ -644,7 +1021,7 @@ router.get('/question/:id/nodes', (req, res) => {
   try {
     const { id } = req.params;
     let question = null;
-    
+
     for (const project of practiceData) {
       for (const practice of project.practices || []) {
         const foundQuestion = practice.questions?.find(q => q.id === id);
@@ -655,12 +1032,12 @@ router.get('/question/:id/nodes', (req, res) => {
       }
       if (question) break;
     }
-    
+
     if (!question) {
       return res.status(404).json({ message: 'Question not found' });
     }
 
-    res.status(200).json({ 
+    res.status(200).json({
       questionId: id,
       nodes: question.nodes || []
     });
@@ -674,12 +1051,12 @@ router.put('/question/:id/nodes', (req, res) => {
   try {
     const { id } = req.params;
     const { nodes } = req.body;
-    
+
     let questionObj = null;
     let projectIndex = -1;
     let practiceIndex = -1;
     let questionIndex = -1;
-    
+
     for (let i = 0; i < practiceData.length; i++) {
       const project = practiceData[i];
       for (let j = 0; j < (project.practices?.length || 0); j++) {
@@ -695,24 +1072,20 @@ router.put('/question/:id/nodes', (req, res) => {
       }
       if (questionObj) break;
     }
-    
+
     if (!questionObj) {
       return res.status(404).json({ message: 'Question not found' });
     }
 
-    // 获取原有的节点链接，用于后续更新集成数据
     const oldNodes = questionObj.nodes || [];
-    
-    // 更新问题的节点链接
+
     practiceData[projectIndex].practices[practiceIndex].questions[questionIndex].nodes = nodes;
     practiceData[projectIndex].updatedAt = new Date();
     persistPractice();
 
-    // 同步更新集成数据中对应节点的 questionLinks
     const integrationData = loadIntegration();
     let integrationUpdated = false;
-    
-    // 移除旧的链接
+
     for (const oldNodeId of oldNodes) {
       for (const project of integrationData) {
         for (const graph of project.graphs || []) {
@@ -725,8 +1098,7 @@ router.put('/question/:id/nodes', (req, res) => {
         }
       }
     }
-    
-    // 添加新的链接
+
     for (const newNodeId of nodes) {
       for (const project of integrationData) {
         for (const graph of project.graphs || []) {
@@ -744,14 +1116,13 @@ router.put('/question/:id/nodes', (req, res) => {
         }
       }
     }
-    
-    // 保存集成数据
+
     if (integrationUpdated) {
       saveIntegration(integrationData);
     }
 
-    res.status(200).json({ 
-      message: 'Question nodes updated successfully', 
+    res.status(200).json({
+      message: 'Question nodes updated successfully',
       question: practiceData[projectIndex].practices[practiceIndex].questions[questionIndex]
     });
   } catch (error) {

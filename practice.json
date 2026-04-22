@@ -5,7 +5,7 @@
     "description": "tpd",
     "userId": "1775049679386",
     "createdAt": "2026-04-12T06:00:01.018Z",
-    "updatedAt": "2026-04-18T15:23:28.343Z",
+    "updatedAt": "2026-04-21T11:26:57.321Z",
     "practices": [
       {
         "id": "1775973616626",
@@ -20,9 +20,7 @@
             "correctAnswer": "Answer",
             "feedback": "Some Feedback",
             "nodes": [
-              "1775817938595",
-              "1775817949340",
-              "1775817938595"
+              "1775817949340"
             ]
           },
           {
@@ -69,13 +67,18 @@
             "responseFunction": ""
           },
           {
-            "id": "1776524231520",
-            "type": "fill-blank",
-            "question": "What is this?",
-            "options": [],
-            "correctAnswer": "Answer",
-            "feedback": "Some Feedback",
-            "responseFunction": ""
+            "id": "1776770498479",
+            "type": "multiple-choice",
+            "question": "What is 2 + 2?",
+            "options": [
+              "3",
+              "4",
+              "5",
+              "6"
+            ],
+            "correctAnswer": "B",
+            "feedback": "",
+            "responseFunction": "isCorrect ? plugins.execute(\"example\", \"formatMessage\", true, \"You got it right! 2 + 2 = 4\") : plugins.execute(\"example\", \"formatMessage\", false, \"Try again! 2 + 2 = 4\")"
           }
         ]
       }

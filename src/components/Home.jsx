@@ -21,7 +21,7 @@ const Home = () => {
           <Link to="/" className="nav-link active">Home</Link>
           <Link to="/input" className="nav-link">Input Level</Link>
           <Link to="/integration" className="nav-link">Integration Level</Link>
-          <Link to="/practice" className="nav-link">Practice Level</Link>
+          <Link to="/practice/student" className="nav-link">Practice Level</Link>
         </div>
         <div className="user-info">
           <span>Hello, {user?.username || 'User'}</span>

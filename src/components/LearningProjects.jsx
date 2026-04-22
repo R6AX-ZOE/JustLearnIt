@@ -12,7 +12,7 @@ import {
 
 const LearningProjects = () => {
   // 从localStorage获取用户信息
-  const user = JSON.parse(localStorage.getItem('user') || 'null');
+  const [user, setUser] = useState(JSON.parse(localStorage.getItem('user') || 'null'));
   const [projects, setProjects] = useState([]);
   const [selectedProject, setSelectedProject] = useState(null);
   const [selectedDirectory, setSelectedDirectory] = useState(null);
@@ -44,10 +44,20 @@ const LearningProjects = () => {
   const [selectedCopyDestination, setSelectedCopyDestination] = useState(null);
   const [expandedDirectories, setExpandedDirectories] = useState(new Set());
 
-  // 只在用户变化时获取项目列表
+  // 监听localStorage中的用户信息变化
+  useEffect(() => {
+    const handleStorageChange = () => {
+      setUser(JSON.parse(localStorage.getItem('user') || 'null'));
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
+  // 在组件挂载时获取项目列表
   useEffect(() => {
     if (user) {
-      fetchProjects(user.id, setProjects);
+      fetchProjects(user.id, setProjects, true);
     }
   }, [user]);
 
@@ -97,9 +107,24 @@ const LearningProjects = () => {
             }
           }
         }
+      } else {
+        // 如果找不到项目，重置选择状态
+        setSelectedProject(null);
+        setSelectedDirectory(null);
+        setSelectedContent(null);
       }
+    } else if (projectId) {
+      // 如果projectId存在但projects数组为空，尝试重新获取项目列表
+      if (user) {
+        fetchProjects(user.id, setProjects, true);
+      }
+    } else {
+      // 如果没有projectId，重置选择状态
+      setSelectedProject(null);
+      setSelectedDirectory(null);
+      setSelectedContent(null);
     }
-  }, [projectId, directoryId, contentId, projects.length]);
+  }, [projectId, directoryId, contentId, projects.length, user]);
 
   // 处理创建项目
   const handleCreateProject = () => {
@@ -379,7 +404,7 @@ const LearningProjects = () => {
           <div className="navigation-links">
             <a href="/" className="nav-link">Home</a>
             <a href="/integration" className="nav-link">Integration Level</a>
-            <a href="/practice" className="nav-link">Practice Level</a>
+            <a href="/practice/student" className="nav-link">Practice Level</a>
           </div>
         </div>
         <button onClick={handleCreateProject} className="create-btn">Create New Input</button>
@@ -418,26 +443,28 @@ const LearningProjects = () => {
         />
 
         {/* 右侧内容区域 */}
-        <ContentArea 
-          selectedProject={selectedProject}
-          selectedDirectory={selectedDirectory}
-          showContentForm={showContentForm}
-          showEditContentForm={showEditContentForm}
-          newContent={newContent}
-          setNewContent={setNewContent}
-          uploadingImage={uploadingImage}
-          onSelectDirectory={handleSelectDirectory}
-          onSelectContent={handleSelectContent}
-          onAddContent={handleAddContent}
-          onSubmitContent={handleSubmitContent}
-          onCancelContent={handleCancelContent}
-          onSubmitEditContent={handleUpdateContent}
-          onCancelEditContent={handleCancelEditContent}
-          onImageUpload={handleImageUpload}
-          onContextMenu={handleContextMenu}
-          onMouseDown={handleMouseDown}
-          onMouseUp={handleMouseUp}
-        />
+        <div className="content-area-container">
+          <ContentArea 
+            selectedProject={selectedProject}
+            selectedDirectory={selectedDirectory}
+            showContentForm={showContentForm}
+            showEditContentForm={showEditContentForm}
+            newContent={newContent}
+            setNewContent={setNewContent}
+            uploadingImage={uploadingImage}
+            onSelectDirectory={handleSelectDirectory}
+            onSelectContent={handleSelectContent}
+            onAddContent={handleAddContent}
+            onSubmitContent={handleSubmitContent}
+            onCancelContent={handleCancelContent}
+            onSubmitEditContent={handleUpdateContent}
+            onCancelEditContent={handleCancelEditContent}
+            onImageUpload={handleImageUpload}
+            onContextMenu={handleContextMenu}
+            onMouseDown={handleMouseDown}
+            onMouseUp={handleMouseUp}
+          />
+        </div>
       </div>
 
       {/* 右键菜单 */}

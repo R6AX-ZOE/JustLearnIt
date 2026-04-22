@@ -68,6 +68,15 @@
   gap: 30px;
 }
 
+.content-area-container {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 30px;
+  box-shadow: var(--shadow);
+  min-height: 500px;
+}
+
 .projects-sidebar {
   background: var(--bg);
   border: 1px solid var(--border);

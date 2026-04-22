@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import Sidebar from './components/Sidebar';
 import QuestionRenderer from './components/QuestionRenderer';
 import { fetchProjects, fetchPractices, fetchQuestions } from './services/api';
@@ -7,67 +7,89 @@ import axios from 'axios';
 
 const API_BASE = '/api/practice';
 
-const PracticeLevelStudent = ({ user }) => {
-  // 状态管理
+const PracticeLevelStudent = ({ selectedProjectId, selectedPracticeId, questionIndex, onSelectionChange, onQuestionChange }) => {
+  const user = JSON.parse(localStorage.getItem('user') || 'null');
+
   const [projects, setProjects] = useState([]);
   const [selectedProject, setSelectedProject] = useState(null);
   const [practices, setPractices] = useState([]);
   const [selectedPractice, setSelectedPractice] = useState(null);
   const [questions, setQuestions] = useState([]);
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(-1); // -1 表示在总结页
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(-1);
   const [userAnswers, setUserAnswers] = useState({});
   const [feedback, setFeedback] = useState({});
   const [integrationProjects, setIntegrationProjects] = useState([]);
-  
-  // 加载项目
+
+  const isInitialized = useRef(false);
+
   useEffect(() => {
-    if (user) {
+    if (user && !isInitialized.current) {
+      isInitialized.current = true;
       loadProjects();
       loadIntegrationProjects();
     }
   }, [user]);
-  
-  // 当项目列表加载完成后，设置默认项目
+
   useEffect(() => {
-    if (projects.length > 0 && !selectedProject) {
-      setSelectedProject(projects[0]);
+    if (projects.length > 0 && selectedProjectId && !selectedProject) {
+      const project = projects.find(p => p.id === selectedProjectId);
+      if (project) {
+        setSelectedProject(project);
+      }
     }
-  }, [projects, selectedProject]);
-  
-  // 加载练习
+  }, [projects, selectedProjectId, selectedProject]);
+
   useEffect(() => {
     if (selectedProject) {
       loadPractices();
+    } else {
+      setPractices([]);
+      setSelectedPractice(null);
+      setQuestions([]);
     }
   }, [selectedProject]);
-  
-  // 加载问题
+
+  useEffect(() => {
+    if (practices.length > 0 && selectedPracticeId && !selectedPractice) {
+      const practice = practices.find(p => p.id === selectedPracticeId);
+      if (practice) {
+        setSelectedPractice(practice);
+      }
+    }
+  }, [practices, selectedPracticeId, selectedPractice]);
+
   useEffect(() => {
     if (selectedPractice) {
       loadQuestions();
+    } else {
+      setQuestions([]);
     }
   }, [selectedPractice]);
-  
-  // 当练习列表加载完成后，设置默认练习
+
   useEffect(() => {
     if (practices.length > 0 && !selectedPractice) {
       setSelectedPractice(practices[0]);
-    } else if (practices.length === 0) {
-      setSelectedPractice(null);
     }
   }, [practices, selectedPractice]);
-  
-  // 获取所有项目
+
+  useEffect(() => {
+    if (questionIndex !== null && questions.length > 0) {
+      const validIndex = Math.max(0, Math.min(questionIndex, questions.length - 1));
+      setCurrentQuestionIndex(validIndex);
+    }
+  }, [questionIndex, questions]);
+
   const loadProjects = useCallback(async () => {
     try {
+      console.log('Fetching projects from server');
       const userProjects = await fetchProjects(user.id);
+      console.log('Projects fetched:', userProjects.length);
       setProjects(userProjects);
     } catch (error) {
       console.error('Error fetching projects:', error);
     }
   }, [user]);
-  
-  // 获取集成项目
+
   const loadIntegrationProjects = useCallback(async () => {
     try {
       const response = await axios.get(`/api/integration/projects/${user.id}`);
@@ -76,8 +98,7 @@ const PracticeLevelStudent = ({ user }) => {
       console.error('Error fetching integration projects:', error);
     }
   }, [user]);
-  
-  // 创建节点 ID 到节点信息的映射，用于快速查找
+
   const nodeMap = useMemo(() => {
     const map = new Map();
     for (const project of integrationProjects) {
@@ -85,7 +106,9 @@ const PracticeLevelStudent = ({ user }) => {
         for (const node of graph.nodes || []) {
           map.set(node.id, {
             ...node,
+            projectId: project.id,
             projectName: project.name,
+            graphId: graph.id,
             graphName: graph.name
           });
         }
@@ -93,8 +116,7 @@ const PracticeLevelStudent = ({ user }) => {
     }
     return map;
   }, [integrationProjects]);
-  
-  // 获取项目的练习
+
   const loadPractices = useCallback(async () => {
     try {
       const projectPractices = await fetchPractices(selectedProject.id);
@@ -103,33 +125,46 @@ const PracticeLevelStudent = ({ user }) => {
       console.error('Error fetching practices:', error);
     }
   }, [selectedProject]);
-  
-  // 获取练习的问题
+
   const loadQuestions = useCallback(async () => {
     try {
       const practiceQuestions = await fetchQuestions(selectedPractice.id);
       setQuestions(practiceQuestions);
-      setCurrentQuestionIndex(-1); // 初始状态在总结页
+      setCurrentQuestionIndex(-1);
       setUserAnswers({});
       setFeedback({});
     } catch (error) {
       console.error('Error fetching questions:', error);
     }
   }, [selectedPractice]);
-  
-  // 提交答案
+
+  const handleProjectSelect = (project) => {
+    setSelectedProject(project);
+    setSelectedPractice(null);
+    setQuestions([]);
+    if (onSelectionChange) {
+      onSelectionChange(project.id, null);
+    }
+  };
+
+  const handlePracticeSelect = (practice) => {
+    setSelectedPractice(practice);
+    if (onSelectionChange) {
+      onSelectionChange(selectedProject?.id, practice.id);
+    }
+  };
+
   const handleSubmitAnswer = async (answer) => {
     const currentQuestion = questions[currentQuestionIndex];
     setUserAnswers(prev => ({ ...prev, [currentQuestion.id]: answer }));
-    
+
     try {
-      // 调用服务器 API 获取真实反馈
       const response = await axios.post(`${API_BASE}/question/${currentQuestion.id}/submit`, {
         answer
       });
-      
+
       setFeedback(prev => ({
-        ...prev, 
+        ...prev,
         [currentQuestion.id]: {
           message: response.data.feedback,
           isCorrect: response.data.isCorrect
@@ -137,7 +172,6 @@ const PracticeLevelStudent = ({ user }) => {
       }));
     } catch (error) {
       console.error('Error submitting answer:', error);
-      // 失败时使用本地模拟反馈
       let feedbackMessage = '';
       let isCorrect = false;
       if (currentQuestion.type === 'multiple-choice') {
@@ -158,9 +192,9 @@ const PracticeLevelStudent = ({ user }) => {
         feedbackMessage = 'Your answer: ' + answer;
         isCorrect = true;
       }
-      
+
       setFeedback(prev => ({
-        ...prev, 
+        ...prev,
         [currentQuestion.id]: {
           message: feedbackMessage,
           isCorrect
@@ -168,8 +202,7 @@ const PracticeLevelStudent = ({ user }) => {
       }));
     }
   };
-  
-  // 处理提交按钮点击
+
   const handleSubmitButtonClick = () => {
     const currentQuestion = questions[currentQuestionIndex];
     const userAnswer = userAnswers[currentQuestion.id];
@@ -177,45 +210,63 @@ const PracticeLevelStudent = ({ user }) => {
       handleSubmitAnswer(userAnswer);
     }
   };
-  
-  // 下一题
-  const handleNextQuestion = () => {
-    if (currentQuestionIndex < questions.length - 1) {
+
+  const handleNextQuestion = (startFromFirst) => {
+    if (startFromFirst) {
+      setCurrentQuestionIndex(0);
+      if (onQuestionChange) {
+        onQuestionChange(0);
+      }
+    } else if (currentQuestionIndex < questions.length - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
+      if (onQuestionChange) {
+        onQuestionChange(currentQuestionIndex + 1);
+      }
     } else if (currentQuestionIndex === questions.length - 1) {
-      // 完成所有题目后，跳转到总结页
       setCurrentQuestionIndex(-1);
+      if (onQuestionChange) {
+        onQuestionChange(null);
+      }
     }
   };
-  
-  // 上一题
+
   const handlePreviousQuestion = () => {
     if (currentQuestionIndex === -1) {
-      // 在总结页时，跳转到最后一题
       setCurrentQuestionIndex(questions.length - 1);
+      if (onQuestionChange) {
+        onQuestionChange(questions.length - 1);
+      }
     } else if (currentQuestionIndex > 0) {
       setCurrentQuestionIndex(currentQuestionIndex - 1);
+      if (onQuestionChange) {
+        onQuestionChange(currentQuestionIndex - 1);
+      }
     }
   };
-  
+
+  const handleSidebarQuestionSelect = (index) => {
+    setCurrentQuestionIndex(index);
+    if (onQuestionChange) {
+      onQuestionChange(index);
+    }
+  };
+
   return (
     <div className="practice-level">
       <div className="practice-content">
-        {/* 左侧项目和练习列表 */}
         <Sidebar
           projects={projects}
           selectedProject={selectedProject}
-          setSelectedProject={setSelectedProject}
+          setSelectedProject={handleProjectSelect}
           practices={practices}
           selectedPractice={selectedPractice}
-          setSelectedPractice={setSelectedPractice}
+          setSelectedPractice={handlePracticeSelect}
           questions={questions}
           currentQuestionIndex={currentQuestionIndex}
-          setCurrentQuestionIndex={setCurrentQuestionIndex}
+          setCurrentQuestionIndex={handleSidebarQuestionSelect}
           isStudentMode={true}
         />
-        
-        {/* 右侧练习内容 */}
+
         <div className="practice-main">
           {!selectedProject ? (
             <div className="empty-state">
@@ -233,13 +284,14 @@ const PracticeLevelStudent = ({ user }) => {
                 <h3>{selectedPractice.name}</h3>
                 <p>{selectedPractice.description}</p>
               </div>
-              
+
               <QuestionRenderer
                 questions={questions}
                 currentQuestionIndex={currentQuestionIndex}
                 userAnswers={userAnswers}
                 setUserAnswers={setUserAnswers}
                 feedback={feedback}
+                setFeedback={setFeedback}
                 handleSubmitButtonClick={handleSubmitButtonClick}
                 handlePreviousQuestion={handlePreviousQuestion}
                 handleNextQuestion={handleNextQuestion}
@@ -249,7 +301,7 @@ const PracticeLevelStudent = ({ user }) => {
           )}
         </div>
       </div>
-      
+
       <style>{styles}</style>
     </div>
   );

@@ -235,7 +235,7 @@ const ContentArea = ({
   }
 
   return (
-    <div className="content-section">
+    <>
       <div className="content-header">
         <h3>{selectedDirectory.name}</h3>
         <button 
@@ -300,7 +300,7 @@ const ContentArea = ({
         onSelectDirectory={onSelectDirectory}
         onContextMenu={onContextMenu}
       />
-    </div>
+    </>
   );
 };
 
