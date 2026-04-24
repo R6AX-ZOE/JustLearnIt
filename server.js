@@ -71,7 +71,7 @@ app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
 // 根路径路由
 app.get('/', (req, res) => {
-  res.json({ message: 'JustLearnIt API Server', users });
+  res.json({ message: 'R6AX:/Learn API Server', users });
 });
 
 // 登录路由

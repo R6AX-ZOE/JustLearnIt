@@ -16,7 +16,7 @@ const Home = () => {
   return (
     <div className="home-container">
       <div className="header">
-        <h1>Welcome to JustLearnIt</h1>
+        <h1>Welcome to R6AX:/Learn</h1>
         <div className="nav-menu">
           <Link to="/" className="nav-link active">Home</Link>
           <Link to="/input" className="nav-link">Input Level</Link>
