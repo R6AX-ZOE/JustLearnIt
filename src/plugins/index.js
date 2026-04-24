@@ -1,9 +1,11 @@
 import pluginSystem from './pluginSystem';
 import examplePlugin from './examplePlugin';
+import reviewPlugin from './reviewPlugin';
 
 // 注册所有插件
 const registerPlugins = () => {
   pluginSystem.registerPlugin('example', examplePlugin);
+  pluginSystem.registerPlugin('review', reviewPlugin);
   // 可以在这里注册更多插件
 };
 

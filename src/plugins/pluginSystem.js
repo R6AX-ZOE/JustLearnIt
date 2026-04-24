@@ -23,7 +23,23 @@ class PluginSystem {
   // 加载插件
   async loadPlugin(name) {
     if (!this.plugins.has(name)) {
-      throw new Error(`Plugin ${name} not found`);
+      // 尝试自动注册插件
+      try {
+        let plugin;
+        switch (name) {
+          case 'example':
+            plugin = (await import('./examplePlugin.js')).default;
+            break;
+          case 'review':
+            plugin = (await import('./reviewPlugin.js')).default;
+            break;
+          default:
+            throw new Error(`Plugin ${name} not found`);
+        }
+        this.registerPlugin(name, plugin);
+      } catch (error) {
+        throw new Error(`Plugin ${name} not found`);
+      }
     }
     
     if (this.loadedPlugins.has(name)) {
@@ -81,7 +97,8 @@ class PluginSystem {
     }
     
     try {
-      return await plugin.methods[methodName](...args);
+      // 绑定this到插件实例
+      return await plugin.methods[methodName].call(plugin, ...args);
     } catch (error) {
       console.error(`Error executing method ${methodName} in plugin ${pluginName}:`, error);
       throw error;

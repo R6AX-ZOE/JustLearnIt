@@ -20,6 +20,7 @@ const PracticeLevelStudentSession = ({ mode }) => {
   const [feedback, setFeedback] = useState({});
   const [hasAnswered, setHasAnswered] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showReview, setShowReview] = useState(false);
 
   const loadSessionData = useCallback(async () => {
     if (isLoadingRef.current) return;
@@ -40,11 +41,21 @@ const PracticeLevelStudentSession = ({ mode }) => {
         const sessionData = await fetchSession(sessionId);
         setSession(sessionData);
         if (sessionData.questions && sessionData.questions.length > 0) {
-          setCurrentQuestion(sessionData.questions[sessionData.currentQuestionIndex]);
-          setCurrentQuestionIndex(sessionData.currentQuestionIndex);
+          const questionIndex = sessionData.currentQuestionIndex || 0;
+          setCurrentQuestionIndex(questionIndex);
+          setCurrentQuestion(sessionData.questions[questionIndex]);
           setUserAnswers(sessionData.answers || {});
-          const answered = sessionData.answers && sessionData.answers[sessionData.questions[sessionData.currentQuestionIndex].id];
-          setHasAnswered(!!answered);
+          const currentAnswer = sessionData.answers && sessionData.answers[sessionData.questions[questionIndex].id];
+          setHasAnswered(!!currentAnswer);
+          if (currentAnswer) {
+            setFeedback(prev => ({
+              ...prev,
+              [sessionData.questions[questionIndex].id]: {
+                message: currentAnswer.feedback,
+                isCorrect: currentAnswer.isCorrect
+              }
+            }));
+          }
         }
       } else if (mode === 'end') {
         const endData = await fetchSessionEnd(sessionId);
@@ -135,7 +146,11 @@ const PracticeLevelStudentSession = ({ mode }) => {
   };
 
   const handleViewDetails = () => {
-    navigate(`/practice/student/session/${sessionId}/end`);
+    setShowReview(true);
+  };
+
+  const handleBackToEnd = () => {
+    setShowReview(false);
   };
 
   const handleModeChange = (newMode) => {
@@ -144,6 +159,76 @@ const PracticeLevelStudentSession = ({ mode }) => {
     } else if (newMode === 'student') {
       navigate('/practice/student');
     }
+  };
+
+  const renderReviewQuestion = (question, index) => {
+    const answer = endInfo.answers[question.id];
+    const userAnswer = answer?.answer;
+    const correctAnswer = question.correctAnswer;
+    const isCorrect = answer?.isCorrect;
+
+    return (
+      <div key={question.id} className="review-question">
+        <div className="review-question-header">
+          <h4 className="review-question-number">Question {index + 1}</h4>
+          <span className={`review-question-status ${isCorrect ? 'correct' : 'incorrect'}`}>
+            {isCorrect ? '✓ Correct' : '✗ Incorrect'}
+          </span>
+        </div>
+        <p className="review-question-text">{question.question}</p>
+
+        {question.type === 'multiple-choice' && (
+          <div className="review-options">
+            {question.options.map((option, optIndex) => {
+              const isSelected = userAnswer === option;
+              const isRightAnswer = option === correctAnswer;
+
+              let optionClass = 'review-option';
+              if (isRightAnswer) optionClass += ' review-option-correct';
+              else if (isSelected) optionClass += ' review-option-incorrect';
+
+              return (
+                <div key={optIndex} className={optionClass}>
+                  <span className="review-option-label">{optIndex + 1}. </span>
+                  <span className="review-option-text">{option}</span>
+                  {isRightAnswer && <span className="review-option-badge">✓ Correct Answer</span>}
+                  {isSelected && !isRightAnswer && <span className="review-option-badge">✗ Your Answer</span>}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {question.type === 'fill-blank' && (
+          <div className="review-fill-blank">
+            <div className="review-answer-display">
+              <span className="review-label">Your Answer:</span>
+              <span className={`review-value ${isCorrect ? 'correct' : 'incorrect'}`}>{userAnswer || '(no answer)'}</span>
+            </div>
+            <div className="review-answer-display">
+              <span className="review-label">Correct Answer:</span>
+              <span className="review-value correct">{correctAnswer}</span>
+            </div>
+          </div>
+        )}
+
+        {question.type === 'essay' && (
+          <div className="review-essay">
+            <div className="review-answer-display">
+              <span className="review-label">Your Answer:</span>
+              <div className="review-essay-value">{userAnswer || '(no answer)'}</div>
+            </div>
+          </div>
+        )}
+
+        {answer?.feedback && (
+          <div className="review-feedback">
+            <h5 className="review-feedback-label">Feedback:</h5>
+            <div className="review-feedback-text">{answer.feedback}</div>
+          </div>
+        )}
+      </div>
+    );
   };
 
   if (loading) {
@@ -196,6 +281,9 @@ const PracticeLevelStudentSession = ({ mode }) => {
   }
 
   if (mode === 'start') {
+    const isInProgress = startInfo?.currentQuestionIndex > 0;
+    const nextQuestionNumber = (startInfo?.currentQuestionIndex || 0) + 1;
+
     return (
       <div className="practice-level">
         <div className="practice-header">
@@ -228,7 +316,7 @@ const PracticeLevelStudentSession = ({ mode }) => {
           <div className="start-container">
             <div className="start-header">
               <h1>{startInfo?.practiceName || 'Practice Session'}</h1>
-              <p className="subtitle">Ready to begin?</p>
+              <p className="subtitle">{isInProgress ? 'Continue where you left off' : 'Ready to begin?'}</p>
             </div>
 
             <div className="start-info">
@@ -240,18 +328,27 @@ const PracticeLevelStudentSession = ({ mode }) => {
                 </div>
               </div>
               <div className="info-card">
-                <div className="info-icon">⏱️</div>
+                <div className="info-icon">{isInProgress ? '🔄' : '⏱️'}</div>
                 <div className="info-content">
-                  <h3>{startInfo?.currentQuestionIndex > 0 ? 'In Progress' : 'New'}</h3>
-                  <p>{startInfo?.currentQuestionIndex > 0 ? `Question ${startInfo.currentQuestionIndex + 1} onwards` : 'Starting from Question 1'}</p>
+                  <h3>{isInProgress ? 'In Progress' : 'New'}</h3>
+                  <p>{isInProgress ? `Resume from Question ${nextQuestionNumber}` : 'Starting from Question 1'}</p>
                 </div>
               </div>
+              {isInProgress && (
+                <div className="info-card">
+                  <div className="info-icon">✅</div>
+                  <div className="info-content">
+                    <h3>{startInfo?.currentQuestionIndex} Completed</h3>
+                    <p>{startInfo?.totalQuestions - startInfo?.currentQuestionIndex} remaining</p>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="start-actions">
               <Link to="/practice/student" className="btn btn-secondary">Back to Home</Link>
               <button className="btn btn-primary" onClick={handleStartPractice}>
-                Begin Practice
+                {isInProgress ? 'Continue Practice' : 'Begin Practice'}
               </button>
             </div>
           </div>
@@ -331,6 +428,79 @@ const PracticeLevelStudentSession = ({ mode }) => {
                 }}
               />
             )}
+          </div>
+        </div>
+
+        <style>{styles}</style>
+      </div>
+    );
+  }
+
+  if (mode === 'end' && showReview) {
+    return (
+      <div className="practice-level">
+        <div className="practice-header">
+          <div className="header-left">
+            <h2>Practice Level</h2>
+            <div className="navigation-links">
+              <a href="/" className="nav-link">Home</a>
+              <a href="/integration" className="nav-link">Integration Level</a>
+            </div>
+          </div>
+          <div className="header-right">
+            <div className="mode-switcher">
+              <button
+                className="mode-btn active"
+                onClick={() => {}}
+              >
+                Practice Mode
+              </button>
+              <button
+                className="mode-btn"
+                onClick={() => handleModeChange('creator')}
+              >
+                Create Mode
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="practice-content">
+          <div className="review-container">
+            <div className="review-header">
+              <button className="btn btn-secondary btn-small" onClick={handleBackToEnd}>
+                ← Back to Summary
+              </button>
+              <h2>Review Your Answers</h2>
+              <p className="subtitle">{endInfo?.practiceName}</p>
+            </div>
+
+            <div className="review-summary">
+              <div className="review-score">
+                <span className="review-score-value">{endInfo?.score || 0}%</span>
+                <span className="review-score-label">Final Score</span>
+              </div>
+              <div className="review-stats">
+                <div className="review-stat">
+                  <span className="review-stat-value correct">{endInfo?.correctCount || 0}</span>
+                  <span className="review-stat-label">Correct</span>
+                </div>
+                <div className="review-stat">
+                  <span className="review-stat-value incorrect">{(endInfo?.totalQuestions || 0) - (endInfo?.correctCount || 0)}</span>
+                  <span className="review-stat-label">Incorrect</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="review-questions">
+              {endInfo?.questions?.map((question, index) => renderReviewQuestion(question, index))}
+            </div>
+
+            <div className="review-footer">
+              <button className="btn btn-primary" onClick={handleFinish}>
+                Done Reviewing
+              </button>
+            </div>
           </div>
         </div>
 

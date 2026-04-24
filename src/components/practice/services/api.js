@@ -129,6 +129,26 @@ export const fetchStudentHistory = async (userId) => {
   }
 };
 
+export const deleteStudentHistory = async (userId, historyId) => {
+  try {
+    const response = await axios.delete(`${API_BASE}/student/${userId}/history/${historyId}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error deleting history:', error);
+    throw error;
+  }
+};
+
+export const deleteStudentSession = async (userId, sessionId) => {
+  try {
+    const response = await axios.delete(`${API_BASE}/student/${userId}/in-progress/${sessionId}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error deleting session:', error);
+    throw error;
+  }
+};
+
 export const startSession = async (userId, practiceId, sourceQuestions = null) => {
   try {
     const response = await axios.post(`${API_BASE}/student/${userId}/session`, {

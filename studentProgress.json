@@ -1,7 +1,7 @@
 {
   "inProgress": [
     {
-      "id": "session_1776877633906_n8stauopt",
+      "id": "session_1776997671165_0i23cpr83",
       "userId": "1775049679386",
       "practiceId": "1775973616626",
       "practiceName": "tpp",
@@ -75,10 +75,17 @@
           "responseFunction": "isCorrect ? plugins.execute(\"example\", \"formatMessage\", true, \"You got it right! 2 + 2 = 4\") : plugins.execute(\"example\", \"formatMessage\", false, \"Try again! 2 + 2 = 4\")"
         }
       ],
-      "currentQuestionIndex": 0,
-      "answers": {},
-      "startTime": "2026-04-22T17:07:13.906Z",
-      "lastActivityTime": "2026-04-22T17:07:13.906Z",
+      "currentQuestionIndex": 1,
+      "answers": {
+        "1775973673262": {
+          "answer": "Answer",
+          "isCorrect": true,
+          "feedback": "Correct",
+          "submittedAt": "2026-04-24T02:27:59.776Z"
+        }
+      },
+      "startTime": "2026-04-24T02:27:51.165Z",
+      "lastActivityTime": "2026-04-24T02:28:01.987Z",
       "status": "in_progress",
       "score": null,
       "totalQuestions": 5,
@@ -86,236 +93,6 @@
     }
   ],
   "history": [
-    {
-      "id": "history_1776874653954_fza85h6uo",
-      "userId": "1775049679386",
-      "sessionId": "session_1776874595194_s2g4ickf0",
-      "practiceId": "1775973616626",
-      "practiceName": "tpp",
-      "questions": [
-        {
-          "id": "1775973673262",
-          "type": "fill-blank",
-          "question": "What is this?",
-          "options": [],
-          "correctAnswer": "Answer",
-          "feedback": "Some Feedback",
-          "nodes": [
-            "1775817949340"
-          ]
-        },
-        {
-          "id": "1775973893267",
-          "type": "multiple-choice",
-          "question": "Choose B",
-          "options": [
-            "A",
-            "B",
-            "C",
-            "D"
-          ],
-          "correctAnswer": "B",
-          "feedback": "",
-          "nodes": [
-            "1775817938595"
-          ]
-        },
-        {
-          "id": "1776406534480",
-          "type": "essay",
-          "question": "New Question",
-          "options": [
-            "Option A",
-            "Option B",
-            "Option C",
-            "Option D"
-          ],
-          "correctAnswer": "A",
-          "feedback": "Some Feedback"
-        },
-        {
-          "id": "1776524059048",
-          "type": "multiple-choice",
-          "question": "New Question",
-          "options": [
-            "Option A",
-            "Option B",
-            "Option C",
-            "Option D"
-          ],
-          "correctAnswer": "A",
-          "feedback": "",
-          "responseFunction": ""
-        },
-        {
-          "id": "1776770498479",
-          "type": "multiple-choice",
-          "question": "What is 2 + 2?",
-          "options": [
-            "3",
-            "4",
-            "5",
-            "6"
-          ],
-          "correctAnswer": "B",
-          "feedback": "",
-          "responseFunction": "isCorrect ? plugins.execute(\"example\", \"formatMessage\", true, \"You got it right! 2 + 2 = 4\") : plugins.execute(\"example\", \"formatMessage\", false, \"Try again! 2 + 2 = 4\")"
-        }
-      ],
-      "answers": {
-        "1775973673262": {
-          "answer": "Answer",
-          "isCorrect": true,
-          "feedback": "Correct",
-          "submittedAt": "2026-04-22T16:16:58.062Z"
-        },
-        "1775973893267": {
-          "answer": "B",
-          "isCorrect": true,
-          "feedback": "Correct",
-          "submittedAt": "2026-04-22T16:17:04.719Z"
-        },
-        "1776406534480": {
-          "answer": "ss",
-          "isCorrect": true,
-          "feedback": "Correct",
-          "submittedAt": "2026-04-22T16:17:14.005Z"
-        },
-        "1776524059048": {
-          "answer": "A",
-          "isCorrect": true,
-          "feedback": "Correct",
-          "submittedAt": "2026-04-22T16:17:22.020Z"
-        },
-        "1776770498479": {
-          "answer": "B",
-          "isCorrect": true,
-          "feedback": "✅ You got it right! 2 + 2 = 4",
-          "submittedAt": "2026-04-22T16:17:30.602Z"
-        }
-      },
-      "score": 100,
-      "correctCount": 5,
-      "totalQuestions": 5,
-      "startTime": "2026-04-22T16:16:35.194Z",
-      "endTime": "2026-04-22T16:17:33.954Z",
-      "completedAt": "2026-04-22T16:17:33.954Z"
-    },
-    {
-      "id": "history_1776874891087_afzvtprzv",
-      "userId": "1775049679386",
-      "sessionId": "session_1776874825970_4si2o0b9f",
-      "practiceId": "1775973616626",
-      "practiceName": "tpp",
-      "questions": [
-        {
-          "id": "1775973673262",
-          "type": "fill-blank",
-          "question": "What is this?",
-          "options": [],
-          "correctAnswer": "Answer",
-          "feedback": "Some Feedback",
-          "nodes": [
-            "1775817949340"
-          ]
-        },
-        {
-          "id": "1775973893267",
-          "type": "multiple-choice",
-          "question": "Choose B",
-          "options": [
-            "A",
-            "B",
-            "C",
-            "D"
-          ],
-          "correctAnswer": "B",
-          "feedback": "",
-          "nodes": [
-            "1775817938595"
-          ]
-        },
-        {
-          "id": "1776406534480",
-          "type": "essay",
-          "question": "New Question",
-          "options": [
-            "Option A",
-            "Option B",
-            "Option C",
-            "Option D"
-          ],
-          "correctAnswer": "A",
-          "feedback": "Some Feedback"
-        },
-        {
-          "id": "1776524059048",
-          "type": "multiple-choice",
-          "question": "New Question",
-          "options": [
-            "Option A",
-            "Option B",
-            "Option C",
-            "Option D"
-          ],
-          "correctAnswer": "A",
-          "feedback": "",
-          "responseFunction": ""
-        },
-        {
-          "id": "1776770498479",
-          "type": "multiple-choice",
-          "question": "What is 2 + 2?",
-          "options": [
-            "3",
-            "4",
-            "5",
-            "6"
-          ],
-          "correctAnswer": "B",
-          "feedback": "",
-          "responseFunction": "isCorrect ? plugins.execute(\"example\", \"formatMessage\", true, \"You got it right! 2 + 2 = 4\") : plugins.execute(\"example\", \"formatMessage\", false, \"Try again! 2 + 2 = 4\")"
-        }
-      ],
-      "answers": {
-        "1775973673262": {
-          "answer": "Answer",
-          "isCorrect": true,
-          "feedback": "Correct",
-          "submittedAt": "2026-04-22T16:20:46.104Z"
-        },
-        "1775973893267": {
-          "answer": "B",
-          "isCorrect": true,
-          "feedback": "Correct",
-          "submittedAt": "2026-04-22T16:21:12.426Z"
-        },
-        "1776406534480": {
-          "answer": "ss",
-          "isCorrect": true,
-          "feedback": "Correct",
-          "submittedAt": "2026-04-22T16:21:20.761Z"
-        },
-        "1776524059048": {
-          "answer": "A",
-          "isCorrect": true,
-          "feedback": "Correct",
-          "submittedAt": "2026-04-22T16:21:24.846Z"
-        },
-        "1776770498479": {
-          "answer": "B",
-          "isCorrect": true,
-          "feedback": "✅ You got it right! 2 + 2 = 4",
-          "submittedAt": "2026-04-22T16:21:29.187Z"
-        }
-      },
-      "score": 100,
-      "correctCount": 5,
-      "totalQuestions": 5,
-      "startTime": "2026-04-22T16:20:25.970Z",
-      "endTime": "2026-04-22T16:21:31.087Z",
-      "completedAt": "2026-04-22T16:21:31.087Z"
-    },
     {
       "id": "history_1776875523505_7hn040u80",
       "userId": "1775049679386",
@@ -353,9 +130,9 @@
       "completedAt": "2026-04-22T16:32:03.505Z"
     },
     {
-      "id": "history_1776876189658_4n6pmbuiy",
+      "id": "history_1776990689926_gexc013to",
       "userId": "1775049679386",
-      "sessionId": "session_1776876142341_5dxytxa9l",
+      "sessionId": "session_1776989115037_qjsbsd0dp",
       "practiceId": "1775973616626",
       "practiceName": "tpp",
       "questions": [
@@ -433,39 +210,39 @@
           "answer": "Answer",
           "isCorrect": true,
           "feedback": "Correct",
-          "submittedAt": "2026-04-22T16:42:35.708Z"
+          "submittedAt": "2026-04-24T00:05:56.238Z"
         },
         "1775973893267": {
           "answer": "B",
           "isCorrect": true,
           "feedback": "Correct",
-          "submittedAt": "2026-04-22T16:42:40.352Z"
+          "submittedAt": "2026-04-24T00:31:09.214Z"
         },
         "1776406534480": {
           "answer": "ss",
           "isCorrect": true,
           "feedback": "Correct",
-          "submittedAt": "2026-04-22T16:42:53.856Z"
+          "submittedAt": "2026-04-24T00:31:14.974Z"
         },
         "1776524059048": {
           "answer": "A",
           "isCorrect": true,
           "feedback": "Correct",
-          "submittedAt": "2026-04-22T16:43:00.284Z"
+          "submittedAt": "2026-04-24T00:31:19.374Z"
         },
         "1776770498479": {
-          "answer": "B",
-          "isCorrect": true,
-          "feedback": "✅ You got it right! 2 + 2 = 4",
-          "submittedAt": "2026-04-22T16:43:07.028Z"
+          "answer": "A",
+          "isCorrect": false,
+          "feedback": "❌ Try again! 2 + 2 = 4",
+          "submittedAt": "2026-04-24T00:31:23.842Z"
         }
       },
-      "score": 100,
-      "correctCount": 5,
+      "score": 80,
+      "correctCount": 4,
       "totalQuestions": 5,
-      "startTime": "2026-04-22T16:42:22.341Z",
-      "endTime": "2026-04-22T16:43:09.658Z",
-      "completedAt": "2026-04-22T16:43:09.658Z"
+      "startTime": "2026-04-24T00:05:15.037Z",
+      "endTime": "2026-04-24T00:31:29.926Z",
+      "completedAt": "2026-04-24T00:31:29.926Z"
     }
   ]
 }

@@ -1,4 +1,4 @@
-# JustLearnIt
+# R6AX:/Learn
 
 既然软件还没写完，我可以先在这里写的随意一些
 

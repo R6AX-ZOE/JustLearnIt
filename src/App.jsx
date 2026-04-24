@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './components/Auth/Login';
 import Home from './components/Home';
@@ -7,6 +7,7 @@ import IntegrationLevel from './components/IntegrationLevel';
 import PracticeLevel from './components/PracticeLevel';
 import PracticeLevelStudentHome from './components/practice/PracticeLevelStudentHome';
 import PracticeLevelStudentSession from './components/practice/PracticeLevelStudentSession';
+import { registerPlugins } from './plugins';
 import './App.css';
 
 const isAuthenticated = () => {
@@ -21,6 +22,10 @@ const ProtectedRoute = ({ children }) => {
 };
 
 function App() {
+  useEffect(() => {
+    registerPlugins();
+  }, []);
+
   return (
     <Router>
       <div className="app-container">

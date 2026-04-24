@@ -952,7 +952,182 @@ router.get('/session/:sessionId/end', (req, res) => {
       score: history.score,
       correctCount: history.correctCount,
       totalQuestions: history.totalQuestions,
-      completedAt: history.completedAt
+      completedAt: history.completedAt,
+      questions: history.questions,
+      answers: history.answers
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// 删除历史记录
+router.delete('/student/:userId/history/:historyId', (req, res) => {
+  try {
+    const { userId, historyId } = req.params;
+
+    const historyIndex = studentProgressData.history.findIndex(h => h.id === historyId && h.userId === userId);
+    if (historyIndex === -1) {
+      return res.status(404).json({ message: 'History entry not found' });
+    }
+
+    studentProgressData.history.splice(historyIndex, 1);
+    persistStudentProgress();
+
+    res.status(200).json({ message: 'History entry deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// 删除in-progress记录
+router.delete('/student/:userId/in-progress/:sessionId', (req, res) => {
+  try {
+    const { userId, sessionId } = req.params;
+
+    const sessionIndex = studentProgressData.inProgress.findIndex(s => s.id === sessionId && s.userId === userId);
+    if (sessionIndex === -1) {
+      return res.status(404).json({ message: 'Session not found' });
+    }
+
+    studentProgressData.inProgress.splice(sessionIndex, 1);
+    persistStudentProgress();
+
+    res.status(200).json({ message: 'Session deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// 获取错题
+router.get('/student/:userId/incorrect-questions', (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { startDate, endDate } = req.query;
+    // 获取多个practiceId参数
+    const practiceIds = req.query.practiceId ? 
+      (Array.isArray(req.query.practiceId) ? req.query.practiceId : [req.query.practiceId]) : 
+      [];
+
+    const incorrectQuestions = [];
+
+    for (const history of studentProgressData.history) {
+      if (history.userId === userId) {
+        if (practiceIds.length === 0 || practiceIds.includes(history.practiceId)) {
+          for (const [questionId, answer] of Object.entries(history.answers)) {
+            if (!answer.isCorrect) {
+              // 检查时间范围
+              const submittedDate = new Date(answer.submittedAt);
+              let withinDateRange = true;
+              
+              if (startDate) {
+                // 解析为本地时间的开始
+                const start = new Date(startDate);
+                // 确保比较时只比较日期部分，忽略时间
+                const submittedDateOnly = new Date(submittedDate.getFullYear(), submittedDate.getMonth(), submittedDate.getDate());
+                const startDateOnly = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+                withinDateRange = withinDateRange && submittedDateOnly >= startDateOnly;
+              }
+              
+              if (endDate) {
+                // 解析为本地时间的结束
+                const end = new Date(endDate);
+                // 确保比较时只比较日期部分，忽略时间
+                const submittedDateOnly = new Date(submittedDate.getFullYear(), submittedDate.getMonth(), submittedDate.getDate());
+                const endDateOnly = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+                withinDateRange = withinDateRange && submittedDateOnly <= endDateOnly;
+              }
+              
+              if (withinDateRange) {
+                const question = history.questions.find(q => q.id === questionId);
+                if (question) {
+                  incorrectQuestions.push({
+                    question,
+                    userAnswer: answer.answer,
+                    feedback: answer.feedback,
+                    practiceId: history.practiceId,
+                    practiceName: history.practiceName,
+                    submittedAt: answer.submittedAt,
+                    sessionId: history.sessionId
+                  });
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    res.status(200).json({ incorrectQuestions });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// 创建错题题单会话
+router.post('/student/:userId/review-session', (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { questionIds, practiceId, practiceName } = req.body;
+
+    if (!questionIds || questionIds.length === 0) {
+      return res.status(400).json({ message: 'Question IDs are required' });
+    }
+
+    // 收集所有历史记录中的错题
+    const allIncorrectQuestions = [];
+    for (const history of studentProgressData.history) {
+      if (history.userId === userId) {
+        for (const [questionId, answer] of Object.entries(history.answers)) {
+          if (!answer.isCorrect) {
+            const question = history.questions.find(q => q.id === questionId);
+            if (question) {
+              allIncorrectQuestions.push({
+                question,
+                userAnswer: answer.answer,
+                feedback: answer.feedback,
+                practiceId: history.practiceId,
+                practiceName: history.practiceName,
+                submittedAt: answer.submittedAt,
+                sessionId: history.sessionId
+              });
+            }
+          }
+        }
+      }
+    }
+
+    // 筛选用户选择的错题
+    const selectedQuestions = allIncorrectQuestions
+      .filter(item => questionIds.includes(item.question.id))
+      .map(item => item.question);
+
+    if (selectedQuestions.length === 0) {
+      return res.status(400).json({ message: 'No valid questions found' });
+    }
+
+    const session = {
+      id: `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      userId,
+      practiceId: practiceId || 'review',
+      practiceName: practiceName || 'Review Session',
+      questions: selectedQuestions,
+      currentQuestionIndex: 0,
+      answers: {},
+      startTime: new Date(),
+      lastActivityTime: new Date(),
+      status: 'in_progress',
+      score: null,
+      totalQuestions: selectedQuestions.length,
+      pluginData: {}
+    };
+
+    studentProgressData.inProgress.push(session);
+    persistStudentProgress();
+
+    res.status(201).json({
+      message: 'Review session started successfully',
+      session: session
     });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
