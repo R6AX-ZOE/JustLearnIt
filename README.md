@@ -21,3 +21,6 @@ still not ready to add AI. 唉……
 
 # 4/22/26
 两日复两日啊……现在在着手优化practice mode。这个应该是最后一个幺蛾子了吧。
+
+# 4/25/26
+完善文档，即将迎接deepseek大人（bushi）

@@ -620,6 +620,355 @@ All API endpoints are prefixed with `/api/practice`.
 - The `feedback` field can contain Markdown and KaTeX syntax, which should be rendered by the frontend
 - The `isMarkdown` field indicates that the feedback should be rendered as Markdown
 
+## Student Progress API
+
+### 1. Get In-Progress Sessions
+
+**Request Method:** GET
+**Endpoint:** `/student/:userId/in-progress`
+
+**Parameters:**
+- `userId` (path parameter): User ID
+
+**Response:**
+```json
+{
+  "sessions": [
+    {
+      "id": "session_123456789",
+      "userId": "user123",
+      "practiceId": "456",
+      "practiceName": "Math Basics",
+      "questions": [...],
+      "currentQuestionIndex": 2,
+      "answers": {},
+      "startTime": "2026-04-20T10:00:00Z",
+      "lastActivityTime": "2026-04-20T10:15:00Z",
+      "status": "in_progress",
+      "score": null,
+      "totalQuestions": 5
+    }
+  ]
+}
+```
+
+### 2. Get History Sessions
+
+**Request Method:** GET
+**Endpoint:** `/student/:userId/history`
+
+**Parameters:**
+- `userId` (path parameter): User ID
+
+**Response:**
+```json
+{
+  "history": [
+    {
+      "id": "history_123456789",
+      "userId": "user123",
+      "sessionId": "session_987654321",
+      "practiceId": "456",
+      "practiceName": "Math Basics",
+      "questions": [...],
+      "answers": {},
+      "score": 80,
+      "correctCount": 4,
+      "totalQuestions": 5,
+      "startTime": "2026-04-19T14:00:00Z",
+      "endTime": "2026-04-19T14:30:00Z",
+      "completedAt": "2026-04-19T14:30:00Z"
+    }
+  ]
+}
+```
+
+### 3. Start a New Session
+
+**Request Method:** POST
+**Endpoint:** `/student/:userId/session`
+
+**Request Body:**
+```json
+{
+  "practiceId": "456",
+  "sourceQuestions": [...] // Optional: Array of question objects for custom sessions
+}
+```
+
+**Parameters:**
+- `userId` (path parameter): User ID
+- `practiceId` (required): Practice ID
+- `sourceQuestions` (optional): Array of question objects for custom sessions
+
+**Response:**
+```json
+{
+  "message": "Session started successfully",
+  "session": {
+    "id": "session_123456789",
+    "userId": "user123",
+    "practiceId": "456",
+    "practiceName": "Math Basics",
+    "questions": [...],
+    "currentQuestionIndex": 0,
+    "answers": {},
+    "startTime": "2026-04-25T14:00:00Z",
+    "lastActivityTime": "2026-04-25T14:00:00Z",
+    "status": "in_progress",
+    "score": null,
+    "totalQuestions": 5
+  }
+}
+```
+
+### 4. Get Session Details
+
+**Request Method:** GET
+**Endpoint:** `/session/:sessionId`
+
+**Parameters:**
+- `sessionId` (path parameter): Session ID
+
+**Response:**
+```json
+{
+  "session": {
+    "id": "session_123456789",
+    "userId": "user123",
+    "practiceId": "456",
+    "practiceName": "Math Basics",
+    "questions": [...],
+    "currentQuestionIndex": 2,
+    "answers": {},
+    "startTime": "2026-04-25T14:00:00Z",
+    "lastActivityTime": "2026-04-25T14:15:00Z",
+    "status": "in_progress",
+    "score": null,
+    "totalQuestions": 5
+  }
+}
+```
+
+### 5. Get Session Preview
+
+**Request Method:** GET
+**Endpoint:** `/session/:sessionId/preview`
+
+**Parameters:**
+- `sessionId` (path parameter): Session ID
+
+**Response:**
+```json
+{
+  "sessionId": "session_123456789",
+  "practiceName": "Math Basics",
+  "totalQuestions": 5,
+  "previewQuestions": [
+    {
+      "id": "q1",
+      "type": "multiple-choice",
+      "question": "What is 2 + 2?",
+      "options": ["3", "4", "5", "6"]
+    }
+  ]
+}
+```
+
+### 6. Get Session Start Page
+
+**Request Method:** GET
+**Endpoint:** `/session/:sessionId/start`
+
+**Parameters:**
+- `sessionId` (path parameter): Session ID
+
+**Response:**
+```json
+{
+  "sessionId": "session_123456789",
+  "practiceName": "Math Basics",
+  "totalQuestions": 5,
+  "startTime": "2026-04-25T14:00:00Z",
+  "currentQuestionIndex": 0
+}
+```
+
+### 7. Submit Answer
+
+**Request Method:** POST
+**Endpoint:** `/session/:sessionId/submit`
+
+**Request Body:**
+```json
+{
+  "answer": "B"
+}
+```
+
+**Parameters:**
+- `sessionId` (path parameter): Session ID
+- `answer` (required): User's answer
+
+**Response:**
+```json
+{
+  "questionId": "q1",
+  "userAnswer": "B",
+  "isCorrect": true,
+  "feedback": "### Correct!\n\nYou got it right.",
+  "isMarkdown": true,
+  "currentQuestionIndex": 0,
+  "totalQuestions": 5
+}
+```
+
+### 8. Get Next Question
+
+**Request Method:** POST
+**Endpoint:** `/session/:sessionId/next`
+
+**Parameters:**
+- `sessionId` (path parameter): Session ID
+
+**Response:**
+```json
+{
+  "currentQuestionIndex": 1,
+  "question": {
+    "id": "q2",
+    "type": "multiple-choice",
+    "question": "What is 3 + 3?",
+    "options": ["5", "6", "7", "8"]
+  },
+  "hasAnswered": false
+}
+```
+
+### 9. Complete Session
+
+**Request Method:** POST
+**Endpoint:** `/session/:sessionId/complete`
+
+**Parameters:**
+- `sessionId` (path parameter): Session ID
+
+**Response:**
+```json
+{
+  "message": "Session completed successfully",
+  "summary": {
+    "score": 80,
+    "correctCount": 4,
+    "totalQuestions": 5,
+    "practiceName": "Math Basics"
+  }
+}
+```
+
+### 10. Get Session End Page
+
+**Request Method:** GET
+**Endpoint:** `/session/:sessionId/end`
+
+**Parameters:**
+- `sessionId` (path parameter): Session ID
+
+**Response:**
+```json
+{
+  "sessionId": "session_123456789",
+  "practiceName": "Math Basics",
+  "score": 80,
+  "correctCount": 4,
+  "totalQuestions": 5,
+  "completedAt": "2026-04-25T14:30:00Z",
+  "questions": [...],
+  "answers": {}
+}
+```
+
+### 11. Delete History Record
+
+**Request Method:** DELETE
+**Endpoint:** `/student/:userId/history/:historyId`
+
+**Parameters:**
+- `userId` (path parameter): User ID
+- `historyId` (path parameter): History record ID
+
+**Response:**
+```json
+{
+  "message": "History entry deleted successfully"
+}
+```
+
+### 12. Delete In-Progress Session
+
+**Request Method:** DELETE
+**Endpoint:** `/student/:userId/in-progress/:sessionId`
+
+**Parameters:**
+- `userId` (path parameter): User ID
+- `sessionId` (path parameter): Session ID
+
+**Response:**
+```json
+{
+  "message": "Session deleted successfully"
+}
+```
+
+## Question Node API
+
+### 1. Get Question Nodes
+
+**Request Method:** GET
+**Endpoint:** `/question/:id/nodes`
+
+**Parameters:**
+- `id` (path parameter): Question ID
+
+**Response:**
+```json
+{
+  "questionId": "q1",
+  "nodes": ["node1", "node2"]
+}
+```
+
+### 2. Update Question Nodes
+
+**Request Method:** PUT
+**Endpoint:** `/question/:id/nodes`
+
+**Request Body:**
+```json
+{
+  "nodes": ["node1", "node3"]
+}
+```
+
+**Parameters:**
+- `id` (path parameter): Question ID
+- `nodes` (required): Array of node IDs
+
+**Response:**
+```json
+{
+  "message": "Question nodes updated successfully",
+  "question": {
+    "id": "q1",
+    "type": "multiple-choice",
+    "question": "What is 2 + 2?",
+    "options": ["3", "4", "5", "6"],
+    "correctAnswer": "B",
+    "nodes": ["node1", "node3"]
+  }
+}
+```
+
 ## Error Handling
 
 All API endpoints may return the following error responses:
